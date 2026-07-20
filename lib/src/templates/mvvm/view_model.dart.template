@@ -1,0 +1,3 @@
+class {{featureName.pascalCase}}ViewModel {
+  const {{featureName.pascalCase}}ViewModel();
+}
