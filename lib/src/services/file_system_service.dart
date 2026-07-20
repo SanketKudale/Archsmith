@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 
 import '../models/generation.dart';
 
+/// Applies generated files with overwrite and dry-run protection.
 abstract interface class FileSystemService {
   bool fileExists(String path);
   String readFile(String path);
@@ -14,6 +15,7 @@ abstract interface class FileSystemService {
   );
 }
 
+/// Local-disk implementation of [FileSystemService].
 class LocalFileSystemService implements FileSystemService {
   const LocalFileSystemService();
 

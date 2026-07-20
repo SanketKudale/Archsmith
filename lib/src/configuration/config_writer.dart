@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../models/generation.dart';
 import 'archsmith_config.dart';
 
+/// Produces deterministic YAML configuration file plans.
 class ConfigWriter {
   const ConfigWriter();
 

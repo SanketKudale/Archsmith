@@ -1,3 +1,4 @@
+/// Tools for generating safe, repeatable Flutter project architectures.
 library;
 
 export 'src/cli/archsmith_runner.dart';

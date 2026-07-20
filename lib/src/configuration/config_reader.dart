@@ -4,6 +4,7 @@ import 'package:yaml/yaml.dart';
 
 import 'archsmith_config.dart';
 
+/// Reads and validates Archsmith YAML configuration files.
 class ConfigReader {
   const ConfigReader();
 

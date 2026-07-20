@@ -137,7 +137,7 @@ fvm dart test
 fvm dart pub publish --dry-run
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). Before publishing, replace the repository metadata placeholders in `pubspec.yaml` and add real screenshots if desired.
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
 ## Roadmap
 

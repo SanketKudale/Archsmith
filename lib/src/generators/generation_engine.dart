@@ -4,6 +4,7 @@ import '../models/generation.dart';
 import '../models/options.dart';
 import '../utils/naming_utils.dart';
 
+/// Plans architecture and component files without performing direct I/O.
 class GenerationEngine {
   const GenerationEngine({this.configWriter = const ConfigWriter()});
   final ConfigWriter configWriter;

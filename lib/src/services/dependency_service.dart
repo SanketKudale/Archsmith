@@ -2,6 +2,7 @@ import '../configuration/archsmith_config.dart';
 import '../models/options.dart';
 import 'process_service.dart';
 
+/// Central mapping from project choices to pub dependencies.
 class DependencyManifest {
   const DependencyManifest();
 
@@ -18,6 +19,7 @@ class DependencyManifest {
   ];
 }
 
+/// Installs dependencies selected by [DependencyManifest].
 class DependencyService {
   const DependencyService(
     this.process, {

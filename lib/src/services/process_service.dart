@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+/// Captured result and duration of a child process.
 class ProcessOutput {
   const ProcessOutput({
     required this.exitCode,
@@ -15,6 +16,7 @@ class ProcessOutput {
   bool get succeeded => exitCode == 0;
 }
 
+/// Abstraction for safely executing development tools.
 abstract interface class ProcessService {
   Future<ProcessOutput> run(
     String executable,
@@ -23,6 +25,7 @@ abstract interface class ProcessService {
   });
 }
 
+/// Local operating-system implementation of [ProcessService].
 class LocalProcessService implements ProcessService {
   const LocalProcessService();
 

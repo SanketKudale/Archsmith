@@ -2,6 +2,7 @@ import 'dart:io';
 
 import '../utils/naming_utils.dart';
 
+/// Renders file templates with normalized naming variants.
 class TemplateService {
   const TemplateService();
 

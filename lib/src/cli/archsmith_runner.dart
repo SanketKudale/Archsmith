@@ -10,6 +10,7 @@ import 'commands/doctor_command.dart';
 import 'commands/generate_command.dart';
 import 'commands/init_command.dart';
 
+/// Registers Archsmith commands and maps failures to stable exit codes.
 class ArchsmithRunner {
   ArchsmithRunner({CommandContext? context})
     : context = context ?? CommandContext() {

@@ -1,11 +1,13 @@
 import 'dart:io';
 
+/// A terminal label paired with a strongly typed prompt value.
 class PromptChoice<T> {
   const PromptChoice(this.label, this.value);
   final String label;
   final T value;
 }
 
+/// Testable abstraction for collecting interactive user choices.
 abstract interface class PromptService {
   Future<String> askText(
     String message, {
@@ -20,6 +22,7 @@ abstract interface class PromptService {
   );
 }
 
+/// Standard-input and standard-output implementation of [PromptService].
 class TerminalPromptService implements PromptService {
   const TerminalPromptService();
 

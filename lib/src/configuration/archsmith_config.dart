@@ -1,5 +1,6 @@
 import '../models/options.dart';
 
+/// Optional core modules selected for a generated project.
 class ModuleConfig {
   const ModuleConfig({
     this.localization = true,
@@ -14,6 +15,7 @@ class ModuleConfig {
   final bool runtimeProtection;
 }
 
+/// Persistent behavior applied to future generation commands.
 class GenerationConfig {
   const GenerationConfig({
     this.generateTests = true,
@@ -28,6 +30,7 @@ class GenerationConfig {
   final bool analyzeAfterGeneration;
 }
 
+/// Immutable and validated representation of `archsmith.yaml`.
 class ArchsmithConfig {
   const ArchsmithConfig({
     required this.projectName,

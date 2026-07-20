@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1
+
+- Corrected GitHub repository, homepage, and issue-tracker metadata.
+- Added public API documentation for improved generated API reference quality.
+
 ## 0.1.0
 
 - Initial interactive and non-interactive CLI.

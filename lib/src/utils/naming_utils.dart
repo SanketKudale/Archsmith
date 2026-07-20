@@ -1,3 +1,4 @@
+/// Normalized snake, camel, Pascal, title, and kebab case forms of a name.
 class NameVariants {
   NameVariants(String input) : words = _words(input) {
     if (words.isEmpty) throw const FormatException('Name cannot be empty.');
@@ -30,4 +31,5 @@ class NameVariants {
       value[0].toUpperCase() + value.substring(1);
 }
 
+/// Creates normalized naming variants from common input styles.
 NameVariants names(String input) => NameVariants(input);
