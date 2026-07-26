@@ -1,6 +1,9 @@
 /// Tools for generating safe, repeatable Flutter project architectures.
 library;
 
+export 'src/api/api_code_generator.dart';
+export 'src/api/api_contract.dart';
+export 'src/api/api_contract_reader.dart';
 export 'src/cli/archsmith_runner.dart';
 export 'src/configuration/archsmith_config.dart';
 export 'src/configuration/config_reader.dart';

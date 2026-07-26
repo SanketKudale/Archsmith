@@ -21,7 +21,24 @@ class GenerationEngine {
       ),
       const PlannedFile('lib/core/error/app_exception.dart', _exception),
       const PlannedFile('lib/core/logging/app_logger.dart', _logger),
-      const PlannedFile('lib/shared/widgets/.gitkeep', ''),
+      const PlannedFile(
+        'lib/shared/widgets/app_component_defaults.dart',
+        _componentDefaults,
+      ),
+      const PlannedFile('lib/shared/widgets/app_scaffold.dart', _appScaffold),
+      const PlannedFile('lib/shared/widgets/app_button.dart', _appButton),
+      const PlannedFile(
+        'lib/shared/widgets/app_text_field.dart',
+        _appTextField,
+      ),
+      const PlannedFile(
+        'lib/shared/widgets/app_loading_indicator.dart',
+        _appLoadingIndicator,
+      ),
+      const PlannedFile(
+        'lib/shared/widgets/common_widgets.dart',
+        _commonWidgets,
+      ),
       if (config.generation.generateTests)
         const PlannedFile('test/widget_test.dart', _widgetTest),
     ];
@@ -33,6 +50,7 @@ class GenerationEngine {
       files.add(const PlannedFile('lib/core/i18n/app_strings.dart', _strings));
     }
     if (config.network != NetworkType.none) {
+      files.add(const PlannedFile('archsmith_api.yaml', _apiContractTemplate));
       files.add(
         PlannedFile('lib/core/network/network_client.dart', _network(config)),
       );
@@ -61,7 +79,9 @@ class GenerationEngine {
     final name = names(rawName);
     final featureName = names(feature ?? _featureFor(rawName));
     final paths = _componentPaths(config.architecture, featureName.snakeCase);
-    final folder = paths[kind] ?? paths['service']!;
+    final folder = kind == 'widget'
+        ? 'lib/shared/widgets'
+        : paths[kind] ?? paths['service']!;
     final classSuffix = {
       'feature': 'Feature',
       'page': 'Page',
@@ -70,6 +90,7 @@ class GenerationEngine {
       'service': 'Service',
       'usecase': 'UseCase',
       'controller': 'Controller',
+      'widget': 'Widget',
     }[kind]!;
     final files = <PlannedFile>[];
     if (kind == 'feature') {
@@ -77,7 +98,9 @@ class GenerationEngine {
         files.add(PlannedFile('$directory/.gitkeep', ''));
       }
       final pagePath = '${paths['page']}/${featureName.snakeCase}_page.dart';
-      files.add(PlannedFile(pagePath, _pageClass(featureName)));
+      files.add(
+        PlannedFile(pagePath, _pageClass(config.projectName, featureName)),
+      );
       if (withTests) {
         files.add(
           PlannedFile(
@@ -93,7 +116,9 @@ class GenerationEngine {
         PlannedFile(
           filePath,
           kind == 'page'
-              ? _pageClass(name)
+              ? _pageClass(config.projectName, name)
+              : kind == 'widget'
+              ? _widgetClass(name)
               : _plainClass(name, classSuffix, kind),
         ),
       );
@@ -191,10 +216,11 @@ class GenerationEngine {
     }
     return "import 'package:flutter/material.dart';\n"
         "${config.modules.theme ? "import '../core/theme/app_theme.dart';\n" : ''}$gateImport\n"
+        "import '../shared/widgets/app_scaffold.dart';\n"
         "class App extends StatelessWidget {\n  const App({super.key});\n\n"
         "  @override\n  Widget build(BuildContext context) => MaterialApp(\n"
         "    title: '${names(config.projectName).titleCase}',${config.modules.theme ? '\n    theme: AppTheme.light,' : ''}\n"
-        "    home: const Scaffold(body: Center(child: Text('Welcome')),$builder\n  );\n}\n";
+        "    home: const AppScaffold(body: Center(child: Text('Welcome'))),$builder\n  );\n}\n";
   }
 
   String _network(ArchsmithConfig config) => switch (config.network) {
@@ -207,7 +233,7 @@ class GenerationEngine {
 
   String _router(ArchsmithConfig config) => switch (config.router) {
     RouterType.goRouter =>
-      "import 'package:flutter/material.dart';\nimport 'package:go_router/go_router.dart';\n\nfinal appRouter = GoRouter(routes: [\n  GoRoute(path: '/', builder: (context, state) => const Scaffold(body: Center(child: Text('Home')))),\n]);\n",
+      "import 'package:flutter/material.dart';\nimport 'package:go_router/go_router.dart';\nimport '../../shared/widgets/app_scaffold.dart';\n\nfinal appRouter = GoRouter(routes: [\n  GoRoute(path: '/', builder: (context, state) => const AppScaffold(body: Center(child: Text('Home')))),\n]);\n",
     RouterType.autoRoute =>
       "/// Configure AutoRoute routes here.\nabstract final class AppRoutes {\n  static const home = '/';\n}\n",
     RouterType.navigator =>
@@ -314,8 +340,26 @@ class GenerationEngine {
     ];
   }
 
-  String _pageClass(NameVariants name) =>
-      "import 'package:flutter/material.dart';\n\nclass ${name.pascalCase}Page extends StatelessWidget {\n  const ${name.pascalCase}Page({super.key});\n  @override\n  Widget build(BuildContext context) => const Scaffold(body: SizedBox.shrink());\n}\n";
+  String _pageClass(String projectName, NameVariants name) =>
+      "import 'package:flutter/material.dart';\n"
+      "import 'package:$projectName/shared/widgets/app_scaffold.dart';\n\n"
+      "class ${name.pascalCase}Page extends StatelessWidget {\n"
+      "  const ${name.pascalCase}Page({super.key});\n"
+      "  @override\n"
+      "  Widget build(BuildContext context) => const AppScaffold(\n"
+      "    title: '${name.titleCase}',\n"
+      "    body: SizedBox.shrink(),\n"
+      "  );\n"
+      "}\n";
+
+  String _widgetClass(NameVariants name) =>
+      "import 'package:flutter/widgets.dart';\n\n"
+      "/// Reusable application widget. Customize it here and use it anywhere.\n"
+      "class ${name.pascalCase}Widget extends StatelessWidget {\n"
+      "  const ${name.pascalCase}Widget({super.key});\n\n"
+      "  @override\n"
+      "  Widget build(BuildContext context) => const SizedBox.shrink();\n"
+      "}\n";
 
   String _plainClass(NameVariants name, String suffix, String kind) =>
       "/// Generated $kind.\nclass ${name.pascalCase}$suffix {\n  const ${name.pascalCase}$suffix();\n}\n";
@@ -389,6 +433,168 @@ const _exception =
     "class AppException implements Exception {\n  const AppException(this.message);\n  final String message;\n  @override\n  String toString() => message;\n}\n";
 const _logger =
     "abstract interface class AppLogger {\n  void info(String message);\n  void warning(String message);\n  void error(String message, [Object? error, StackTrace? stackTrace]);\n}\n";
+const _apiContractTemplate = '''
+# Share this contract with the backend team, then run: archsmith api
+base_url: "https://api.example.com"
+timeout_seconds: 30
+headers:
+  Content-Type: "application/json"
+
+# Static parameters sent with every endpoint. Use ApiRequestContext for
+# authorization tokens and other values that are only known at runtime.
+common:
+  headers:
+    X-Platform: "mobile"
+  query_parameters: {}
+  body_parameters: {}
+
+# Configure the backend's standard success/error envelope.
+response_handling:
+  data_key: "data"
+  success_key: "success"
+  success_values: [true]
+  # error_key: "has_error"
+  # error_values: [true]
+  message_key: "message"
+  code_key: "code"
+  errors_key: "errors"
+  success_status_codes: [200, 201]
+
+# Reusable response/request models can be referenced by endpoint payloads.
+models: {}
+
+# Supported methods: GET, POST, PUT, PATCH, DELETE.
+# Field types: string, int, double, num, bool, datetime, dynamic,
+# another model name, or any type followed by [].
+endpoints: []
+
+# Example:
+# endpoints:
+#   - name: login
+#     method: POST
+#     path: /auth/login
+#     headers:
+#       X-Client: mobile
+#     request:
+#       model: LoginRequest
+#       fields:
+#         email: string
+#         password: string
+#     response:
+#       model: LoginResponse
+#       fields:
+#         access_token: string
+#         expires_at: datetime
+''';
+const _componentDefaults =
+    "import 'package:flutter/material.dart';\n\n"
+    "/// Customize shared component defaults here to update the entire app.\n"
+    "abstract final class AppComponentDefaults {\n"
+    "  static const contentPadding = EdgeInsets.all(16);\n"
+    "  static const controlBorderRadius = 12.0;\n"
+    "  static const buttonHeight = 48.0;\n"
+    "  static const loadingIndicatorSize = 24.0;\n"
+    "  static const loadingIndicatorStrokeWidth = 3.0;\n"
+    "}\n";
+const _appScaffold =
+    "import 'package:flutter/material.dart';\n"
+    "import 'app_component_defaults.dart';\n\n"
+    "/// Shared page shell used by generated screens.\n"
+    "class AppScaffold extends StatelessWidget {\n"
+    "  const AppScaffold({\n"
+    "    required this.body,\n"
+    "    this.title,\n"
+    "    this.actions,\n"
+    "    this.floatingActionButton,\n"
+    "    this.padding = AppComponentDefaults.contentPadding,\n"
+    "    super.key,\n"
+    "  });\n\n"
+    "  final Widget body;\n"
+    "  final String? title;\n"
+    "  final List<Widget>? actions;\n"
+    "  final Widget? floatingActionButton;\n"
+    "  final EdgeInsetsGeometry padding;\n\n"
+    "  @override\n"
+    "  Widget build(BuildContext context) => Scaffold(\n"
+    "    appBar: title == null ? null : AppBar(title: Text(title!), actions: actions),\n"
+    "    body: SafeArea(child: Padding(padding: padding, child: body)),\n"
+    "    floatingActionButton: floatingActionButton,\n"
+    "  );\n"
+    "}\n";
+const _appButton =
+    "import 'package:flutter/material.dart';\n"
+    "import 'app_component_defaults.dart';\n\n"
+    "/// Shared primary button. Change this widget once to update every usage.\n"
+    "class AppButton extends StatelessWidget {\n"
+    "  const AppButton({required this.label, required this.onPressed, super.key});\n\n"
+    "  final String label;\n"
+    "  final VoidCallback? onPressed;\n\n"
+    "  @override\n"
+    "  Widget build(BuildContext context) => SizedBox(\n"
+    "    height: AppComponentDefaults.buttonHeight,\n"
+    "    child: FilledButton(\n"
+    "      onPressed: onPressed,\n"
+    "      style: FilledButton.styleFrom(\n"
+    "        shape: RoundedRectangleBorder(\n"
+    "          borderRadius: BorderRadius.circular(AppComponentDefaults.controlBorderRadius),\n"
+    "        ),\n"
+    "      ),\n"
+    "      child: Text(label),\n"
+    "    ),\n"
+    "  );\n"
+    "}\n";
+const _appTextField =
+    "import 'package:flutter/material.dart';\n"
+    "import 'app_component_defaults.dart';\n\n"
+    "/// Shared text field with centrally controlled decoration.\n"
+    "class AppTextField extends StatelessWidget {\n"
+    "  const AppTextField({\n"
+    "    this.controller,\n"
+    "    this.label,\n"
+    "    this.hint,\n"
+    "    this.onChanged,\n"
+    "    this.obscureText = false,\n"
+    "    super.key,\n"
+    "  });\n\n"
+    "  final TextEditingController? controller;\n"
+    "  final String? label;\n"
+    "  final String? hint;\n"
+    "  final ValueChanged<String>? onChanged;\n"
+    "  final bool obscureText;\n\n"
+    "  @override\n"
+    "  Widget build(BuildContext context) => TextField(\n"
+    "    controller: controller,\n"
+    "    onChanged: onChanged,\n"
+    "    obscureText: obscureText,\n"
+    "    decoration: InputDecoration(\n"
+    "      labelText: label,\n"
+    "      hintText: hint,\n"
+    "      border: OutlineInputBorder(\n"
+    "        borderRadius: BorderRadius.circular(AppComponentDefaults.controlBorderRadius),\n"
+    "      ),\n"
+    "    ),\n"
+    "  );\n"
+    "}\n";
+const _appLoadingIndicator =
+    "import 'package:flutter/material.dart';\n"
+    "import 'app_component_defaults.dart';\n\n"
+    "/// Shared loading indicator with centrally controlled dimensions.\n"
+    "class AppLoadingIndicator extends StatelessWidget {\n"
+    "  const AppLoadingIndicator({super.key});\n\n"
+    "  @override\n"
+    "  Widget build(BuildContext context) => const SizedBox.square(\n"
+    "    dimension: AppComponentDefaults.loadingIndicatorSize,\n"
+    "    child: CircularProgressIndicator(\n"
+    "      strokeWidth: AppComponentDefaults.loadingIndicatorStrokeWidth,\n"
+    "    ),\n"
+    "  );\n"
+    "}\n";
+const _commonWidgets =
+    "export 'app_button.dart';\n"
+    "export 'app_component_defaults.dart';\n"
+    "export 'app_loading_indicator.dart';\n"
+    "export 'app_scaffold.dart';\n"
+    "export 'app_text_field.dart';\n";
 const _theme =
     "import 'package:flutter/material.dart';\n\nabstract final class AppTheme {\n  static ThemeData get light => ThemeData(colorSchemeSeed: Colors.indigo, useMaterial3: true);\n}\n";
 const _strings =
