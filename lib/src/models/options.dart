@@ -15,6 +15,7 @@ enum StateManagementType {
   riverpod('riverpod', 'Riverpod'),
   bloc('bloc', 'Bloc'),
   provider('provider', 'Provider'),
+  getx('getx', 'GetX'),
   none('none', 'None');
 
   const StateManagementType(this.value, this.label);

@@ -52,4 +52,18 @@ void main() {
       throwsArgumentError,
     );
   });
+
+  test('allows explicit generated-file updates without global force', () async {
+    final file = File(p.join(directory.path, 'generated.txt'))
+      ..writeAsStringSync('old');
+    final result = await const LocalFileSystemService().apply(
+      directory.path,
+      const [
+        PlannedFile('generated.txt', 'new', isUpdate: true),
+      ],
+      const GenerationOptions(),
+    );
+    expect(result.count(GenerationAction.update), 1);
+    expect(file.readAsStringSync(), 'new');
+  });
 }
