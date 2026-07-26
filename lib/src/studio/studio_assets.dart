@@ -20,6 +20,8 @@ abstract final class StudioAssets {
       <button data-width="800">Tablet</button>
       <button data-width="1280">Desktop</button>
     </div>
+    <button id="undo" class="icon secondary" title="Undo">↶</button>
+    <button id="redo" class="icon secondary" title="Redo">↷</button>
     <button id="save" class="secondary">Save</button>
     <button id="generate">Generate Dart</button>
   </header>
@@ -49,6 +51,7 @@ abstract final class StudioAssets {
         </label>
         <div id="arguments"></div>
         <label>Success route<input id="successRoute" placeholder="/next"></label>
+        <button id="duplicate" class="secondary wide">Duplicate component</button>
         <button id="remove" class="danger">Remove component</button>
       </div>
     </aside>
@@ -65,6 +68,8 @@ header{height:64px;display:flex;align-items:center;gap:10px;padding:10px 16px;bo
 input,select{width:100%;color:#e9eef9;background:#151b28;border:1px solid #30384a;border-radius:8px;padding:9px 10px;outline:none}input:focus,select:focus{border-color:#7557ff}
 header input,header select{width:145px}header #route{width:190px}.breakpoints{display:flex;margin-left:auto;background:#171d2a;border-radius:9px;padding:3px}.breakpoints button{background:transparent;color:#8e99ad}.breakpoints button.active{background:#30394d;color:#fff}
 button{border:0;border-radius:8px;padding:9px 13px;color:white;background:#7357f5;cursor:pointer}button.secondary{background:#293247}button.danger{width:100%;margin-top:18px;background:#542a36;color:#ffabbc}
+button.icon{font-size:18px;padding:6px 11px}button.wide{width:100%;margin-top:18px}
+button:disabled{opacity:.35;cursor:not-allowed}
 main{height:calc(100vh - 64px);display:grid;grid-template-columns:240px minmax(400px,1fr) 300px}.panel{background:#101520;padding:18px;overflow:auto}.palette{border-right:1px solid #252b39}.inspector{border-left:1px solid #252b39}h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:#8d98ad;margin:0 0 14px}
 #components{margin-top:13px}.category{font-size:11px;color:#727f96;margin:18px 0 7px;text-transform:uppercase}.component{display:flex;align-items:center;gap:9px;padding:10px;margin:5px 0;border:1px solid #283044;border-radius:9px;background:#161c29;cursor:grab}.component:before{content:"+";display:grid;place-items:center;width:22px;height:22px;border-radius:6px;background:#292f47;color:#a89aff}
 .workspace{position:relative;overflow:auto;display:flex;justify-content:center;padding:45px;background-image:radial-gradient(#283042 1px,transparent 1px);background-size:22px 22px}
@@ -78,7 +83,8 @@ label{display:block;font-size:12px;color:#98a3b6;margin:12px 0 5px}label input,l
 ''';
 
   static const js = r'''
-let bootstrap, schema, selected = null, draggedType = null;
+let bootstrap, schema, selected = null, draggedType = null, draggedNodeId = null;
+let history = [], future = [];
 const $ = id => document.getElementById(id);
 const uid = type => `${type}_${Math.random().toString(36).slice(2,8)}`;
 
@@ -112,7 +118,7 @@ function renderPalette(filter='') {
     items.forEach(c => {
       const element = document.createElement('div');
       element.className='component'; element.draggable=true; element.textContent=c.label;
-      element.ondragstart=()=>draggedType=c.type;
+      element.ondragstart=()=>{draggedType=c.type;draggedNodeId=null};
       element.ondblclick=()=>addNode(c.type);
       host.appendChild(element);
     });
@@ -128,25 +134,61 @@ function addNode(type,targetId){
   const component=descriptor(type), node={id:uid(type),type,properties:{...component.defaults},children:[]};
   const target=targetId ? findNode(schema.root,targetId)?.node : (selected||schema.root);
   const destination=descriptor(target.type)?.accepts_children ? target : schema.root;
+  checkpoint();
   destination.children ||= []; destination.children.push(node); selected=node; render();
 }
 function removeSelected(){
   if(!selected||selected===schema.root)return;
+  checkpoint();
   const found=findNode(schema.root,selected.id); found.parent.children=found.parent.children.filter(n=>n!==selected);
   selected=null; render();
 }
+function moveNode(nodeId,targetId){
+  if(!nodeId||nodeId===schema.root.id||nodeId===targetId)return;
+  const source=findNode(schema.root,nodeId), target=findNode(schema.root,targetId);
+  if(!source?.parent||!target)return;
+  const destination=descriptor(target.node.type)?.accepts_children?target.node:target.parent;
+  if(!destination||findNode(source.node,destination.id))return setStatus('A component cannot contain itself.',true);
+  checkpoint();
+  source.parent.children=source.parent.children.filter(node=>node!==source.node);
+  destination.children||=[];destination.children.push(source.node);
+  selected=source.node;render();
+}
+function duplicateSelected(){
+  if(!selected||selected===schema.root)return;
+  const found=findNode(schema.root,selected.id);checkpoint();
+  const copy=JSON.parse(JSON.stringify(selected));
+  const renew=node=>{node.id=uid(node.type);(node.children||[]).forEach(renew)};renew(copy);
+  const index=found.parent.children.indexOf(selected);found.parent.children.splice(index+1,0,copy);
+  selected=copy;render();
+}
+function checkpoint(){history.push(JSON.stringify(schema));if(history.length>100)history.shift();future=[];updateHistoryButtons()}
+function undo(){
+  if(!history.length)return;future.push(JSON.stringify(schema));schema=JSON.parse(history.pop());selected=null;syncScreenFields();render();updateHistoryButtons();
+}
+function redo(){
+  if(!future.length)return;history.push(JSON.stringify(schema));schema=JSON.parse(future.pop());selected=null;syncScreenFields();render();updateHistoryButtons();
+}
+function updateHistoryButtons(){$('undo').disabled=!history.length;$('redo').disabled=!future.length}
+function syncScreenFields(){$('screenName').value=schema.name;$('featureName').value=schema.feature||schema.name;$('route').value=schema.route||''}
 
 function render(){
   schema.name=$('screenName').value; schema.feature=$('featureName').value; schema.route=$('route').value;
-  $('canvas').innerHTML=''; $('canvas').appendChild(renderNode(schema.root));
+  renderCanvas();
   renderInspector();
+}
+function renderCanvas(){
+  $('canvas').innerHTML=''; $('canvas').appendChild(renderNode(schema.root));
 }
 function renderNode(node){
   const element=document.createElement('div'); element.className='node'+(selected===node?' selected':'');
+  element.draggable=node!==schema.root;
+  element.ondragstart=e=>{e.stopPropagation();draggedNodeId=node.id;draggedType=null};
+  element.ondragend=()=>{draggedNodeId=null;draggedType=null};
   element.dataset.id=node.id; element.onclick=e=>{e.stopPropagation();selected=node;render()};
   element.ondragover=e=>{e.preventDefault();element.classList.add('dragover')};
   element.ondragleave=()=>element.classList.remove('dragover');
-  element.ondrop=e=>{e.preventDefault();e.stopPropagation();element.classList.remove('dragover');if(draggedType)addNode(draggedType,node.id)};
+  element.ondrop=e=>{e.preventDefault();e.stopPropagation();element.classList.remove('dragover');if(draggedType)addNode(draggedType,node.id);else if(draggedNodeId)moveNode(draggedNodeId,node.id)};
   element.insertAdjacentHTML('beforeend',`<span class="node-tag">${node.type}</span>`);
   const props={...node.properties,...(node.responsive?.[currentBreakpoint()]||{})};
   const content=document.createElement('div');
@@ -173,10 +215,15 @@ function renderInspector(){
     const label=document.createElement('label');label.className='property';label.textContent=property.label;
     let input;
     if(property.type==='select'){input=document.createElement('select');property.options.forEach(v=>input.add(new Option(v,v)))}
+    else if(property.type==='binding'){
+      input=document.createElement('select');input.add(new Option('Choose state value',''));
+      const action=bootstrap.actions.find(item=>item.id===selected.action?.action_id);
+      Object.keys(action?.state||{isLoading:'isLoading',data:'data',error:'error',isEmpty:'isEmpty'}).forEach(v=>input.add(new Option(v,v)));
+    }
     else {input=document.createElement('input');input.type=property.type==='boolean'?'checkbox':property.type==='number'?'number':property.type==='color'?'color':'text'}
     const value=propertySource[property.name]??selected.properties?.[property.name];
     if(input.type==='checkbox')input.checked=value===true;else input.value=value??'';
-    input.oninput=()=>{propertySource[property.name]=input.type==='checkbox'?input.checked:input.type==='number'?(input.value===''?null:Number(input.value)):input.value;render()};
+    input.oninput=()=>{checkpoint();propertySource[property.name]=input.type==='checkbox'?input.checked:input.type==='number'?(input.value===''?null:Number(input.value)):input.value;renderCanvas()};
     label.appendChild(input);host.appendChild(label);
   });
   renderActions($('actionSearch').value);
@@ -194,7 +241,7 @@ function renderArguments(){
     const label=document.createElement('label');label.textContent=`${parameter.name} · ${parameter.type}`;
     const input=document.createElement('input');input.value=selected.action.arguments?.[parameter.name]??'';
     input.placeholder='$field_id.value or literal';
-    input.onchange=()=>{selected.action.arguments||={};selected.action.arguments[parameter.name]=typedValue(input.value,parameter.type)};
+    input.onchange=()=>{checkpoint();selected.action.arguments||={};selected.action.arguments[parameter.name]=typedValue(input.value,parameter.type)};
     label.appendChild(input);label.insertAdjacentHTML('beforeend','<div class="arg-help">Use $text_field_id.value to bind input.</div>');host.appendChild(label);
   });
 }
@@ -202,23 +249,31 @@ function typedValue(value,type){if(value.startsWith('$'))return value;if(type===
 
 function bindControls(){
   $('componentSearch').oninput=e=>renderPalette(e.target.value);
-  $('canvas').ondragover=e=>e.preventDefault(); $('canvas').ondrop=e=>{e.preventDefault();if(draggedType)addNode(draggedType)};
+  $('canvas').ondragover=e=>e.preventDefault(); $('canvas').ondrop=e=>{e.preventDefault();if(draggedType)addNode(draggedType);else if(draggedNodeId)moveNode(draggedNodeId,schema.root.id)};
   document.querySelectorAll('.breakpoints button').forEach(button=>button.onclick=()=>{
     document.querySelectorAll('.breakpoints button').forEach(item=>item.classList.remove('active'));button.classList.add('active');
     $('device').style.width=`${button.dataset.width}px`;render();
   });
-  $('screenName').onchange=render;$('featureName').onchange=render;$('route').onchange=render;
+  const updateScreen=()=>{checkpoint();render()};
+  $('screenName').onchange=updateScreen;$('featureName').onchange=updateScreen;$('route').onchange=updateScreen;
   $('screens').onchange=async e=>{
     if(!e.target.value)return;
-    try{schema=await request(`/api/screens/${encodeURIComponent(e.target.value)}`);selected=null;$('screenName').value=schema.name;$('featureName').value=schema.feature||schema.name;$('route').value=schema.route||'';render()}catch(error){setStatus(error.message,true)}
+    try{schema=await request(`/api/screens/${encodeURIComponent(e.target.value)}`);selected=null;history=[];future=[];syncScreenFields();render();updateHistoryButtons()}catch(error){setStatus(error.message,true)}
   };
-  $('nodeId').onchange=e=>{selected.id=e.target.value;render()};
+  $('nodeId').onchange=e=>{checkpoint();selected.id=e.target.value;render()};
   $('breakpointOverride').onchange=renderInspector;
   $('actionSearch').oninput=e=>renderActions(e.target.value);
-  $('actionSelect').onchange=e=>{const watches=selected.type==='appLoadingIndicator'||selected.type==='stateText';selected.action=e.target.value?{action_id:e.target.value,method:watches?'watch':'execute',arguments:{}}:undefined;renderInspector()};
-  $('successRoute').onchange=e=>{if(selected.action)selected.action.on_success_route=e.target.value||undefined};
+  $('actionSelect').onchange=e=>{checkpoint();const watches=selected.type==='appLoadingIndicator'||selected.type==='stateText';selected.action=e.target.value?{action_id:e.target.value,method:watches?'watch':'execute',arguments:{}}:undefined;renderInspector()};
+  $('successRoute').onchange=e=>{if(selected.action){checkpoint();selected.action.on_success_route=e.target.value||undefined}};
+  $('undo').onclick=undo;$('redo').onclick=redo;$('duplicate').onclick=duplicateSelected;
   $('remove').onclick=removeSelected;
   $('save').onclick=()=>persist(false);$('generate').onclick=()=>persist(true);
+  document.onkeydown=e=>{
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo()}
+    else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo()}
+    else if(e.key==='Delete'&&document.activeElement?.tagName!=='INPUT'){removeSelected()}
+  };
+  updateHistoryButtons();
 }
 async function persist(generate){
   render();setStatus(generate?'Generating…':'Saving…');

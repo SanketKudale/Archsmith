@@ -13,6 +13,8 @@
 - Added project common-component manifests, automatic Studio registration for
   `archsmith widget`, and `archsmith component add|list` for constructor
   properties and child contracts.
+- Added canvas node movement, undo/redo, duplication, keyboard editing, and
+  dropdown-based generated state bindings.
 
 ## 0.3.0 - 2026-07-26
 
