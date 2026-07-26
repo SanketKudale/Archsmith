@@ -159,6 +159,56 @@ void main() {
     }
   });
 
+  test('action metadata preserves nested request objects and lists', () {
+    final endpoint = const JsonApiEndpointReader().fromMap({
+      'url': 'profileUpdate',
+      'request': {
+        'profile': {
+          'name': 'Sanket',
+          'contact': {'email': 'user@example.com'},
+        },
+        'tags': ['mobile'],
+        'addresses': [
+          {'city': 'Pune', 'postalCode': 411001},
+        ],
+      },
+      'response': {'message': 'updated'},
+    });
+    final files = const CleanApiFeatureGenerator().generate(
+      config: ArchsmithConfig(projectName: 'sample_app'),
+      common: ApiCommonConfig(baseUrl: 'https://api.example.com'),
+      endpoint: endpoint,
+      feature: 'profile',
+    );
+    final action = jsonDecode(
+      files
+          .singleWhere(
+            (file) => file.path.endsWith('profile_profile_update.json'),
+          )
+          .content,
+    ) as Map<String, dynamic>;
+    final parameters =
+        (action['parameters'] as List).cast<Map<String, dynamic>>();
+    final profile =
+        parameters.singleWhere((parameter) => parameter['name'] == 'profile');
+    final addresses =
+        parameters.singleWhere((parameter) => parameter['name'] == 'addresses');
+
+    expect(
+      (profile['children'] as List)
+          .cast<Map<String, dynamic>>()
+          .map((field) => field['name']),
+      ['name', 'contact'],
+    );
+    expect(addresses['is_list'], isTrue);
+    expect(
+      (addresses['children'] as List)
+          .cast<Map<String, dynamic>>()
+          .map((field) => field['name']),
+      ['city', 'postalCode'],
+    );
+  });
+
   test('all state-manager variants generate valid Dart syntax', () async {
     final directory = await Directory.systemTemp.createTemp(
       'archsmith_state_variants_',

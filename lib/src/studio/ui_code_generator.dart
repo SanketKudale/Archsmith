@@ -467,16 +467,21 @@ $callbackArguments  );
         );
     final validations = StringBuffer();
     final variables = <String, String>{};
-    for (final parameter in action.parameters) {
-      final value = binding.arguments[parameter.name];
+    final parameterValues = _parameterValues(
+      action.parameters,
+      binding.arguments,
+    );
+    for (final parameterValue in parameterValues) {
+      final parameter = parameterValue.parameter;
+      final value = parameterValue.value;
       final fieldId = _fieldReference(value);
       if (fieldId == null) continue;
       final matchingFields = textFields.where((node) => node.id == fieldId);
       final field = matchingFields.isEmpty ? null : matchingFields.first;
       if (field == null) continue;
-      final variable =
-          '_${_identifier(action.id)}${_pascal(parameter.name)}Value';
-      variables[parameter.name] = variable;
+      final variable = '_${_identifier(action.id)}'
+          '${_pascal(parameterValue.path)}Value';
+      variables[parameterValue.path] = variable;
       validations.write(
         _inputValidation(field, parameter, variable),
       );
@@ -484,7 +489,7 @@ $callbackArguments  );
     final arguments = action.parameters.map((parameter) {
       final value = binding.arguments[parameter.name];
       return '      ${parameter.name}: '
-          '${_argument(value, parameter.type, variable: variables[parameter.name])},';
+          '${_parameterExpression(parameter, value, parameter.name, variables)},';
     }).join('\n');
     final invoke = switch (config.stateManagement) {
       StateManagementType.riverpod =>
@@ -534,6 +539,115 @@ $arguments
     if (value is String) return _string(value);
     if (value == null) return 'null';
     return value.toString();
+  }
+
+  String _parameterExpression(
+    StudioActionParameter parameter,
+    Object? value,
+    String path,
+    Map<String, String> variables,
+  ) {
+    if (parameter.isList) {
+      if (value is! List) return 'const []';
+      final itemType = _listItemType(parameter.type);
+      final items = <String>[];
+      for (var index = 0; index < value.length; index++) {
+        final item = value[index];
+        final itemPath = '$path.$index';
+        if (parameter.children.isEmpty) {
+          items.add(_argument(item, itemType));
+        } else {
+          final object = item is Map
+              ? Map<String, Object?>.from(item)
+              : const <String, Object?>{};
+          items.add(
+            _entityExpression(
+              itemType,
+              parameter.children,
+              object,
+              itemPath,
+              variables,
+            ),
+          );
+        }
+      }
+      return '[${items.join(', ')}]';
+    }
+    if (parameter.children.isNotEmpty) {
+      final object = value is Map
+          ? Map<String, Object?>.from(value)
+          : const <String, Object?>{};
+      return _entityExpression(
+        parameter.type,
+        parameter.children,
+        object,
+        path,
+        variables,
+      );
+    }
+    return _argument(
+      value,
+      parameter.type,
+      variable: variables[path],
+    );
+  }
+
+  String _entityExpression(
+    String type,
+    List<StudioActionParameter> children,
+    Map<String, Object?> values,
+    String path,
+    Map<String, String> variables,
+  ) {
+    final arguments = children.map(
+      (child) => '${child.name}: ${_parameterExpression(
+        child,
+        values[child.name],
+        '$path.${child.name}',
+        variables,
+      )}',
+    );
+    return '$type(${arguments.join(', ')})';
+  }
+
+  List<_ParameterValue> _parameterValues(
+    List<StudioActionParameter> parameters,
+    Map<String, Object?> values, [
+    String prefix = '',
+  ]) {
+    final result = <_ParameterValue>[];
+    for (final parameter in parameters) {
+      final path =
+          prefix.isEmpty ? parameter.name : '$prefix.${parameter.name}';
+      final value = values[parameter.name];
+      if (parameter.isList) {
+        if (value is List && parameter.children.isNotEmpty) {
+          for (var index = 0; index < value.length; index++) {
+            final item = value[index];
+            if (item is Map) {
+              result.addAll(
+                _parameterValues(
+                  parameter.children,
+                  Map<String, Object?>.from(item),
+                  '$path.$index',
+                ),
+              );
+            }
+          }
+        }
+      } else if (parameter.children.isNotEmpty && value is Map) {
+        result.addAll(
+          _parameterValues(
+            parameter.children,
+            Map<String, Object?>.from(value),
+            path,
+          ),
+        );
+      } else {
+        result.add(_ParameterValue(parameter, value, path));
+      }
+    }
+    return result;
   }
 
   String _inputValidation(
@@ -636,9 +750,16 @@ $arguments
         );
     final binding = bindings.isEmpty ? null : bindings.first;
     return binding?.arguments.values.any(
-          (value) => _fieldReference(value) != null,
+          _containsFieldReference,
         ) ??
         false;
+  }
+
+  bool _containsFieldReference(Object? value) {
+    if (_fieldReference(value) != null) return true;
+    if (value is List) return value.any(_containsFieldReference);
+    if (value is Map) return value.values.any(_containsFieldReference);
+    return false;
   }
 
   String? _fieldReference(Object? value) {
@@ -729,3 +850,18 @@ String _pascal(String value) => value
       (part) => '${part[0].toUpperCase()}${part.substring(1)}',
     )
     .join();
+
+String _listItemType(String type) {
+  if (type.startsWith('List<') && type.endsWith('>')) {
+    return type.substring(5, type.length - 1);
+  }
+  return 'dynamic';
+}
+
+class _ParameterValue {
+  const _ParameterValue(this.parameter, this.value, this.path);
+
+  final StudioActionParameter parameter;
+  final Object? value;
+  final String path;
+}

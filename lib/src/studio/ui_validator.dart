@@ -59,6 +59,104 @@ class UiSchemaValidator {
 
     collect(schema.root);
 
+    void validateParameter(
+      StudioActionParameter parameter,
+      Object? value,
+      String path,
+    ) {
+      if (value == null) {
+        if (parameter.required) {
+          issues.add(
+            UiValidationIssue(path, 'Missing required value.'),
+          );
+        }
+        return;
+      }
+      if (parameter.isList) {
+        if (value is! List) {
+          issues.add(
+            UiValidationIssue(path, 'Expected ${parameter.type}.'),
+          );
+          return;
+        }
+        final itemType = _listItemType(parameter.type);
+        for (var index = 0; index < value.length; index++) {
+          final itemPath = '$path[$index]';
+          final Object? item = value[index];
+          if (parameter.children.isEmpty) {
+            if (!_literalMatches(item, itemType)) {
+              issues.add(
+                UiValidationIssue(
+                  itemPath,
+                  'Expected $itemType, received '
+                  '${item?.runtimeType ?? 'null'}.',
+                ),
+              );
+            }
+          } else if (item is! Map) {
+            issues.add(
+              UiValidationIssue(itemPath, 'Expected a structured object.'),
+            );
+          } else {
+            final object = Map<String, Object?>.from(item);
+            for (final child in parameter.children) {
+              validateParameter(
+                child,
+                object[child.name],
+                '$itemPath.${child.name}',
+              );
+            }
+          }
+        }
+        return;
+      }
+      if (parameter.children.isNotEmpty) {
+        if (value is! Map) {
+          issues.add(
+            UiValidationIssue(path, 'Expected a structured object.'),
+          );
+          return;
+        }
+        final object = Map<String, Object?>.from(value);
+        for (final child in parameter.children) {
+          validateParameter(
+            child,
+            object[child.name],
+            '$path.${child.name}',
+          );
+        }
+        return;
+      }
+      final fieldId = _fieldReference(value);
+      if (fieldId != null) {
+        final field = nodesById[fieldId];
+        if (field == null) {
+          issues.add(
+            UiValidationIssue(path, 'Unknown input field $fieldId.'),
+          );
+        } else if (field.type != 'appTextField') {
+          issues.add(
+            UiValidationIssue(path, '$fieldId is not an appTextField.'),
+          );
+        } else if (!_isPrimitive(parameter.type)) {
+          issues.add(
+            UiValidationIssue(
+              path,
+              '${parameter.type} cannot bind to a text field.',
+            ),
+          );
+        }
+      } else if (!_literalMatches(value, parameter.type)) {
+        issues.add(
+          UiValidationIssue(
+            path,
+            'Expected ${parameter.type}, received '
+            '${value.runtimeType}.',
+          ),
+        );
+      }
+    }
+
     void visit(UiNode node, String path) {
       if (!ids.add(node.id)) {
         issues
@@ -124,41 +222,11 @@ class UiSchemaValidator {
                 }
                 continue;
               }
-              final value = binding.arguments[parameter.name];
-              final fieldId = _fieldReference(value);
-              if (fieldId != null) {
-                final field = nodesById[fieldId];
-                if (field == null) {
-                  issues.add(
-                    UiValidationIssue(
-                      '$path.action.arguments.${parameter.name}',
-                      'Unknown input field $fieldId.',
-                    ),
-                  );
-                } else if (field.type != 'appTextField') {
-                  issues.add(
-                    UiValidationIssue(
-                      '$path.action.arguments.${parameter.name}',
-                      '$fieldId is not an appTextField.',
-                    ),
-                  );
-                } else if (!_isPrimitive(parameter.type)) {
-                  issues.add(
-                    UiValidationIssue(
-                      '$path.action.arguments.${parameter.name}',
-                      '${parameter.type} requires structured entity mapping.',
-                    ),
-                  );
-                }
-              } else if (!_literalMatches(value, parameter.type)) {
-                issues.add(
-                  UiValidationIssue(
-                    '$path.action.arguments.${parameter.name}',
-                    'Expected ${parameter.type}, received '
-                        '${value?.runtimeType ?? 'null'}.',
-                  ),
-                );
-              }
+              validateParameter(
+                parameter,
+                binding.arguments[parameter.name],
+                '$path.action.arguments.${parameter.name}',
+              );
             }
           }
         }
@@ -196,6 +264,13 @@ bool _literalMatches(Object? value, String type) {
     'dynamic' => true,
     _ => false,
   };
+}
+
+String _listItemType(String type) {
+  if (type.startsWith('List<') && type.endsWith('>')) {
+    return type.substring(5, type.length - 1);
+  }
+  return 'dynamic';
 }
 
 Iterable<String> _responsePaths(

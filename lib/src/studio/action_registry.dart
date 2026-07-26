@@ -84,6 +84,8 @@ class StudioActionParameter {
     required this.name,
     required this.type,
     this.required = true,
+    this.isList = false,
+    this.children = const [],
   });
 
   factory StudioActionParameter.fromJson(Map<String, Object?> json) =>
@@ -91,16 +93,29 @@ class StudioActionParameter {
         name: _required(json, 'name'),
         type: _required(json, 'type'),
         required: json['required'] as bool? ?? true,
+        isList: json['is_list'] as bool? ?? false,
+        children: (json['children'] as List? ?? const [])
+            .map(
+              (item) => StudioActionParameter.fromJson(
+                Map<String, Object?>.from(item as Map),
+              ),
+            )
+            .toList(growable: false),
       );
 
   final String name;
   final String type;
   final bool required;
+  final bool isList;
+  final List<StudioActionParameter> children;
 
   Map<String, Object?> toJson() => {
         'name': name,
         'type': type,
         'required': required,
+        'is_list': isList,
+        if (children.isNotEmpty)
+          'children': children.map((item) => item.toJson()).toList(),
       };
 }
 

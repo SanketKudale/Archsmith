@@ -240,4 +240,100 @@ void main() {
       );
     }
   });
+
+  test('generates nested entities and object lists from structured bindings',
+      () async {
+    const action = StudioActionDescriptor(
+      id: 'profile.update',
+      feature: 'profile',
+      operation: 'update',
+      stateManagement: 'riverpod',
+      target: 'updateProvider',
+      method: 'execute',
+      requestType: 'UpdateRequestEntity',
+      parameters: [
+        StudioActionParameter(
+          name: 'profile',
+          type: 'UpdateRequestProfileEntity',
+          children: [
+            StudioActionParameter(name: 'name', type: 'String'),
+            StudioActionParameter(name: 'age', type: 'int'),
+          ],
+        ),
+        StudioActionParameter(
+          name: 'tags',
+          type: 'List<String>',
+          isList: true,
+        ),
+        StudioActionParameter(
+          name: 'addresses',
+          type: 'List<UpdateRequestAddressesItemEntity>',
+          isList: true,
+          children: [
+            StudioActionParameter(name: 'city', type: 'String'),
+            StudioActionParameter(name: 'postalCode', type: 'int'),
+          ],
+        ),
+      ],
+    );
+    const schema = UiScreenSchema(
+      name: 'profile',
+      root: UiNode(
+        id: 'form',
+        type: 'column',
+        children: [
+          UiNode(id: 'name', type: 'appTextField'),
+          UiNode(id: 'age', type: 'appTextField'),
+          UiNode(id: 'city', type: 'appTextField'),
+          UiNode(id: 'postal_code', type: 'appTextField'),
+          UiNode(
+            id: 'submit',
+            type: 'appButton',
+            action: UiActionBinding(
+              actionId: 'profile.update',
+              arguments: {
+                'profile': {
+                  'name': r'$name.value',
+                  'age': r'$age.value',
+                },
+                'tags': ['mobile', 'customer'],
+                'addresses': [
+                  {
+                    'city': r'$city.value',
+                    'postalCode': r'$postal_code.value',
+                  },
+                ],
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final files = const UiCodeGenerator().generate(
+      config: ArchsmithConfig(projectName: 'sample_app'),
+      schema: schema,
+      actions: const [action],
+    );
+    final source = files
+        .singleWhere((file) => file.path.endsWith('.archsmith.dart'))
+        .content;
+
+    expect(source, contains('UpdateRequestProfileEntity('));
+    expect(source, contains("tags: ['mobile', 'customer']"));
+    expect(source, contains('[UpdateRequestAddressesItemEntity('));
+    expect(source, contains('int.tryParse'));
+
+    final directory = await Directory.systemTemp.createTemp(
+      'archsmith_nested_ui_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File(p.join(directory.path, 'page.dart'));
+    await file.writeAsString(source);
+    final format = await Process.run(
+      Platform.resolvedExecutable,
+      ['format', '--output=none', file.path],
+    );
+    expect(format.exitCode, 0, reason: format.stderr.toString());
+  });
 }

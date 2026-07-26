@@ -32,5 +32,7 @@ void main() {
     expect(StudioAssets.js, contains('function checkpoint'));
     expect(StudioAssets.js, contains("property.type==='binding'"));
     expect(StudioAssets.js, contains('function responsePaths'));
+    expect(StudioAssets.js, contains('function renderParameter'));
+    expect(StudioAssets.js, contains("add.textContent='Add item'"));
   });
 }

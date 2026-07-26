@@ -157,14 +157,7 @@ class CleanApiFeatureGenerator {
           target: _actionTarget(config.stateManagement, operation),
           method: 'execute',
           requestType: '${prefix}RequestEntity',
-          parameters: requestClasses.last.fields
-              .map(
-                (field) => StudioActionParameter(
-                  name: field.name,
-                  type: field.dartType('Entity'),
-                ),
-              )
-              .toList(growable: false),
+          parameters: _studioParameters(requestClasses),
           state: const {
             'isLoading': 'isLoading',
             'data': 'data',
@@ -195,6 +188,25 @@ class CleanApiFeatureGenerator {
         }).toList(growable: false);
 
     return fields(classes.last);
+  }
+
+  List<StudioActionParameter> _studioParameters(List<_JsonClass> classes) {
+    final classesByName = {
+      for (final schema in classes) schema.name: schema,
+    };
+
+    List<StudioActionParameter> parameters(_JsonClass schema) =>
+        schema.fields.map((field) {
+          final nested = field.isCustom ? classesByName[field.type] : null;
+          return StudioActionParameter(
+            name: field.name,
+            type: field.dartType('Entity'),
+            isList: field.isList,
+            children: nested == null ? const [] : parameters(nested),
+          );
+        }).toList(growable: false);
+
+    return parameters(classes.last);
   }
 
   List<_JsonClass> _inferClasses(

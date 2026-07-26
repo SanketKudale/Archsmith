@@ -62,10 +62,10 @@ abstract final class StudioAssets {
 
   static const css = r'''
 :root{font-family:Inter,system-ui,sans-serif;color:#e9eef9;background:#0a0d14}
-*{box-sizing:border-box}body{margin:0;overflow:hidden}button,input,select{font:inherit}
+*{box-sizing:border-box}body{margin:0;overflow:hidden}button,input,select,textarea{font:inherit}
 header{height:64px;display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #252b39;background:#101520}
 .brand{display:flex;align-items:center;gap:9px;margin-right:10px;white-space:nowrap}.brand span{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#7557ff,#31c5f4);font-weight:800}
-input,select{width:100%;color:#e9eef9;background:#151b28;border:1px solid #30384a;border-radius:8px;padding:9px 10px;outline:none}input:focus,select:focus{border-color:#7557ff}
+input,select,textarea{width:100%;color:#e9eef9;background:#151b28;border:1px solid #30384a;border-radius:8px;padding:9px 10px;outline:none}input:focus,select:focus,textarea:focus{border-color:#7557ff}
 header input,header select{width:145px}header #route{width:190px}.breakpoints{display:flex;margin-left:auto;background:#171d2a;border-radius:9px;padding:3px}.breakpoints button{background:transparent;color:#8e99ad}.breakpoints button.active{background:#30394d;color:#fff}
 button{border:0;border-radius:8px;padding:9px 13px;color:white;background:#7357f5;cursor:pointer}button.secondary{background:#293247}button.danger{width:100%;margin-top:18px;background:#542a36;color:#ffabbc}
 button.icon{font-size:18px;padding:6px 11px}button.wide{width:100%;margin-top:18px}
@@ -80,6 +80,7 @@ main{height:calc(100vh - 64px);display:grid;grid-template-columns:240px minmax(4
 .preview-text{padding:5px}.preview-field{padding:11px;border:1px solid #b8bfca;border-radius:8px;color:#77808f}.preview-button{padding:10px 18px;text-align:center;color:white;background:#7357f5;border-radius:8px}.preview-card{padding:12px;box-shadow:0 2px 10px #14213d22;border-radius:10px}.preview-row{display:flex;gap:8px}.preview-column{display:flex;flex-direction:column;gap:8px}
 label{display:block;font-size:12px;color:#98a3b6;margin:12px 0 5px}label input,label select{margin-top:5px}.property{margin-bottom:10px}hr{border:0;border-top:1px solid #293042;margin:18px 0}.arg-help{font-size:11px;color:#778399;margin-top:3px}
 .override{display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;background:#171d2a}.override input{width:auto;margin:0}
+.parameter-group{margin:10px 0;padding:10px;border:1px solid #2c3548;border-radius:9px}.parameter-title{font-size:12px;color:#b6c0d2;margin-bottom:8px}.list-item{position:relative;margin:8px 0;padding:8px;background:#151b27;border-radius:8px}.list-item .remove-item{position:absolute;right:6px;top:6px;width:auto;padding:3px 7px;background:#542a36}.add-item{width:100%;margin-top:7px;background:#293247}
 ''';
 
   static const js = r'''
@@ -241,24 +242,51 @@ function renderArguments(){
   const host=$('arguments');host.innerHTML='';const action=bootstrap.actions.find(a=>a.id===selected?.action?.action_id);if(!action)return;
   const fields=allNodes(schema.root).filter(node=>node.type==='appTextField');
   action.parameters.forEach(parameter=>{
-    const label=document.createElement('label');label.textContent=`${parameter.name} · ${parameter.type}`;
-    const current=selected.action.arguments?.[parameter.name], sourceId=fieldSource(current);
-    const source=document.createElement('select');source.add(new Option('Literal value',''));
-    if(['String','int','double','num','bool','dynamic'].includes(parameter.type)){
-      fields.forEach(field=>source.add(new Option(`Field: ${field.properties?.label||field.id}`,field.id)));
-    }
-    source.value=sourceId||'';
-    const input=document.createElement('input');input.value=sourceId?'':current??'';
-    input.placeholder=`Literal ${parameter.type} value`;input.hidden=!!sourceId;
-    source.onchange=()=>{
-      checkpoint();selected.action.arguments||={};input.hidden=!!source.value;
-      selected.action.arguments[parameter.name]=source.value?`$${source.value}.value`:typedValue(input.value,parameter.type);
-    };
-    input.onchange=()=>{checkpoint();selected.action.arguments||={};selected.action.arguments[parameter.name]=typedValue(input.value,parameter.type)};
-    label.appendChild(source);label.appendChild(input);
-    if(!['String','int','double','num','bool','dynamic'].includes(parameter.type))label.insertAdjacentHTML('beforeend','<div class="arg-help">Structured entity mapping will require a nested request component.</div>');
-    host.appendChild(label);
+    renderParameter(parameter,selected.action.arguments?.[parameter.name],host,value=>{
+      selected.action.arguments||={};selected.action.arguments[parameter.name]=value;
+    },fields);
   });
+}
+function renderParameter(parameter,current,host,setValue,fields){
+  if(parameter.is_list){
+    const group=document.createElement('div');group.className='parameter-group';
+    group.innerHTML=`<div class="parameter-title">${parameter.name} · ${parameter.type}</div>`;
+    if(parameter.children?.length){
+      const items=Array.isArray(current)?current:[];
+      items.forEach((item,index)=>{
+        const object=item&&typeof item==='object'&&!Array.isArray(item)?item:{};items[index]=object;
+        const row=document.createElement('div');row.className='list-item';
+        const remove=document.createElement('button');remove.className='remove-item';remove.textContent='×';
+        remove.onclick=()=>{checkpoint();items.splice(index,1);setValue(items);renderInspector()};row.appendChild(remove);
+        parameter.children.forEach(child=>renderParameter(child,object[child.name],row,value=>{object[child.name]=value;setValue(items)},fields));
+        group.appendChild(row);
+      });
+      const add=document.createElement('button');add.className='add-item';add.textContent='Add item';
+      add.onclick=()=>{checkpoint();items.push(defaultObject(parameter.children,fields));setValue(items);renderInspector()};group.appendChild(add);
+    }else{
+      const input=document.createElement('textarea');input.rows=3;input.placeholder='JSON array';input.value=JSON.stringify(Array.isArray(current)?current:[]);
+      input.onchange=()=>{try{const value=JSON.parse(input.value);if(!Array.isArray(value))throw new Error('Expected an array');checkpoint();setValue(value);setStatus('List updated')}catch(error){setStatus(error.message,true)}};
+      group.appendChild(input);
+    }
+    host.appendChild(group);return;
+  }
+  if(parameter.children?.length){
+    const group=document.createElement('div');group.className='parameter-group';
+    group.innerHTML=`<div class="parameter-title">${parameter.name} · ${parameter.type}</div>`;
+    const object=current&&typeof current==='object'&&!Array.isArray(current)?current:defaultObject(parameter.children,fields);
+    setValue(object);
+    parameter.children.forEach(child=>renderParameter(child,object[child.name],group,value=>{object[child.name]=value;setValue(object)},fields));
+    host.appendChild(group);return;
+  }
+  const label=document.createElement('label');label.textContent=`${parameter.name} · ${parameter.type}`;
+  const sourceId=fieldSource(current),source=document.createElement('select');source.add(new Option('Literal value',''));
+  if(isPrimitive(parameter.type))fields.forEach(field=>source.add(new Option(`Field: ${field.properties?.label||field.id}`,field.id)));
+  source.value=sourceId||'';
+  const input=document.createElement('input');input.value=sourceId?'':current??'';
+  input.placeholder=`Literal ${parameter.type} value`;input.hidden=!!sourceId;
+  source.onchange=()=>{checkpoint();input.hidden=!!source.value;setValue(source.value?`$${source.value}.value`:typedValue(input.value,parameter.type))};
+  input.onchange=()=>{checkpoint();setValue(typedValue(input.value,parameter.type))};
+  label.appendChild(source);label.appendChild(input);host.appendChild(label);
 }
 function allNodes(root){return [root,...(root.children||[]).flatMap(allNodes)]}
 function responsePaths(fields,prefix='data'){
@@ -272,15 +300,20 @@ function fieldSource(value){const match=typeof value==='string'&&value.match(/^\
 function normalize(value){return `${value||''}`.toLowerCase().replace(/[^a-z0-9]/g,'')}
 function defaultArguments(action){
   const fields=allNodes(schema.root).filter(node=>node.type==='appTextField'), result={};
-  action.parameters.forEach(parameter=>{
-    const parameterName=normalize(parameter.name);
-    const exact=fields.find(field=>[field.id,field.properties?.label].some(value=>normalize(value)===parameterName));
-    const related=fields.find(field=>[field.id,field.properties?.label].some(value=>parameterName.endsWith(normalize(value))||normalize(value).endsWith(parameterName)));
-    const field=exact||related||(action.parameters.length===1&&fields.length===1?fields[0]:null);
-    result[parameter.name]=field?`$${field.id}.value`:defaultLiteral(parameter.type);
-  });
+  action.parameters.forEach(parameter=>result[parameter.name]=defaultParameter(parameter,fields,action.parameters.length===1));
   return result;
 }
+function defaultParameter(parameter,fields,single=false){
+  if(parameter.is_list)return [];
+  if(parameter.children?.length)return defaultObject(parameter.children,fields);
+  const parameterName=normalize(parameter.name);
+  const exact=fields.find(field=>[field.id,field.properties?.label].some(value=>normalize(value)===parameterName));
+  const related=fields.find(field=>[field.id,field.properties?.label].some(value=>parameterName.endsWith(normalize(value))||normalize(value).endsWith(parameterName)));
+  const field=exact||related||(single&&fields.length===1?fields[0]:null);
+  return field?`$${field.id}.value`:defaultLiteral(parameter.type);
+}
+function defaultObject(parameters,fields){const value={};parameters.forEach(parameter=>value[parameter.name]=defaultParameter(parameter,fields));return value}
+function isPrimitive(type){return ['String','int','double','num','bool','dynamic'].includes(type)}
 function defaultLiteral(type){if(type==='String'||type==='dynamic')return '';if(type==='bool')return false;return null}
 function typedValue(value,type){
   if(value.startsWith('$'))return value;
