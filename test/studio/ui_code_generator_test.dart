@@ -28,6 +28,14 @@ void main() {
             StudioDataField(name: 'description', type: 'String'),
           ],
         ),
+        StudioDataField(
+          name: 'items',
+          type: 'List<AccountDeactivateResponseItemsItemEntity>',
+          isList: true,
+          children: [
+            StudioDataField(name: 'label', type: 'String'),
+          ],
+        ),
       ],
     );
     const schema = UiScreenSchema(
@@ -89,6 +97,19 @@ void main() {
                   method: 'watch',
                 ),
               ),
+              UiNode(
+                id: 'items',
+                type: 'stateGrid',
+                properties: {
+                  'binding': 'data.items',
+                  'itemTextPath': 'label',
+                  'columns': 3,
+                },
+                action: UiActionBinding(
+                  actionId: 'cusacc.accountDeactivate',
+                  method: 'watch',
+                ),
+              ),
             ],
           ),
         ],
@@ -117,6 +138,8 @@ void main() {
         '_cusaccAccountDeactivateFullAccountNumberValue',
       ),
     );
+    expect(generated, contains('GridView.builder'));
+    expect(generated, contains('crossAxisCount: 3'));
     expect(generated, contains('int.tryParse'));
     expect(generated, contains("Account number is required."));
     expect(generated, contains('ref.read(accountDeactivateProvider).error'));
@@ -177,7 +200,14 @@ void main() {
           StudioActionParameter(name: 'query', type: 'String'),
         ],
         responseFields: const [
-          StudioDataField(name: 'message', type: 'String'),
+          StudioDataField(
+            name: 'items',
+            type: 'List<LoadResponseItemsItemEntity>',
+            isList: true,
+            children: [
+              StudioDataField(name: 'message', type: 'String'),
+            ],
+          ),
         ],
       );
       const schema = UiScreenSchema(
@@ -204,9 +234,12 @@ void main() {
               ),
             ),
             UiNode(
-              id: 'message',
-              type: 'stateText',
-              properties: {'binding': 'data.message'},
+              id: 'items',
+              type: 'stateList',
+              properties: {
+                'binding': 'data.items',
+                'itemTextPath': 'message',
+              },
               action: UiActionBinding(
                 actionId: 'items.load',
                 method: 'watch',
@@ -223,6 +256,16 @@ void main() {
         schema: schema,
         actions: [action],
       );
+      final generated = files
+          .singleWhere((file) => file.path.endsWith('.archsmith.dart'))
+          .content;
+      if (manager == StateManagementType.none) {
+        expect(generated, contains('const SizedBox.shrink()'));
+      } else {
+        expect(generated, contains('ListView.separated'));
+        expect(generated, contains('RefreshIndicator'));
+        expect(generated, contains('item.message.toString()'));
+      }
       final variant = Directory(p.join(directory.path, manager.value));
       for (final planned in files) {
         final file = File(p.join(variant.path, planned.path));

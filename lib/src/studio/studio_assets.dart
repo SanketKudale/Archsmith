@@ -198,6 +198,10 @@ function renderNode(node){
   else if(node.type==='appTextField')content.innerHTML=`<div class="preview-field">${escapeHtml(props.label||props.hint||'Text field')}</div>`;
   else if(node.type==='appButton')content.innerHTML=`<div class="preview-button">${escapeHtml(props.label||'Continue')}</div>`;
   else if(node.type==='appLoadingIndicator')content.innerHTML='<div class="preview-text">◌ Loading</div>';
+  else if(node.type==='stateList'||node.type==='stateGrid'){
+    content.className=node.type==='stateGrid'?'preview-row':'preview-column';
+    for(let index=0;index<3;index++)content.insertAdjacentHTML('beforeend',`<div class="preview-card">Response item ${index+1}</div>`);
+  }
   else if(node.type==='spacer')content.style.height=`${props.size||16}px`;
   (node.children||[]).forEach(child=>content.appendChild(renderNode(child)));
   element.appendChild(content); return element;
@@ -222,6 +226,17 @@ function renderInspector(){
       const paths=new Set(Object.keys(action?.state||{isLoading:'isLoading',data:'data',error:'error',isEmpty:'isEmpty'}));
       responsePaths(action?.response_fields||[]).forEach(path=>paths.add(path));
       paths.forEach(v=>input.add(new Option(v,v)));
+    }
+    else if(property.type==='listBinding'){
+      input=document.createElement('select');input.add(new Option('Choose response list',''));
+      const action=bootstrap.actions.find(item=>item.id===selected.action?.action_id);
+      responseListPaths(action?.response_fields||[]).forEach(v=>input.add(new Option(v,v)));
+    }
+    else if(property.type==='itemBinding'){
+      input=document.createElement('select');input.add(new Option('Use whole item',''));
+      const action=bootstrap.actions.find(item=>item.id===selected.action?.action_id);
+      const field=findResponseField(action?.response_fields||[],selected.properties?.binding);
+      responseItemPaths(field?.children||[]).forEach(v=>input.add(new Option(v,v)));
     }
     else {input=document.createElement('input');input.type=property.type==='boolean'?'checkbox':property.type==='number'?'number':property.type==='color'?'color':'text'}
     const value=propertySource[property.name]??selected.properties?.[property.name];
@@ -296,6 +311,16 @@ function responsePaths(fields,prefix='data'){
     return responsePaths(field.children,path);
   });
 }
+function responseListPaths(fields,prefix='data'){
+  return fields.flatMap(field=>{const path=`${prefix}.${field.name}`;if(field.is_list)return [path];return responseListPaths(field.children||[],path)});
+}
+function findResponseField(fields,path,prefix='data'){
+  for(const field of fields){const current=`${prefix}.${field.name}`;if(current===path)return field;const nested=findResponseField(field.children||[],path,current);if(nested)return nested}
+  return null;
+}
+function responseItemPaths(fields,prefix=''){
+  return fields.flatMap(field=>{const path=prefix?`${prefix}.${field.name}`:field.name;if(field.is_list||!field.children?.length)return [path];return responseItemPaths(field.children,path)});
+}
 function fieldSource(value){const match=typeof value==='string'&&value.match(/^\$(.+)\.value$/);return match?match[1]:null}
 function normalize(value){return `${value||''}`.toLowerCase().replace(/[^a-z0-9]/g,'')}
 function defaultArguments(action){
@@ -339,7 +364,7 @@ function bindControls(){
   $('nodeId').onchange=e=>{checkpoint();selected.id=e.target.value;render()};
   $('breakpointOverride').onchange=renderInspector;
   $('actionSearch').oninput=e=>renderActions(e.target.value);
-  $('actionSelect').onchange=e=>{checkpoint();const watches=selected.type==='appLoadingIndicator'||selected.type==='stateText',action=bootstrap.actions.find(item=>item.id===e.target.value);selected.action=action?{action_id:action.id,method:watches?'watch':'execute',arguments:watches?{}:defaultArguments(action)}:undefined;renderInspector()};
+  $('actionSelect').onchange=e=>{checkpoint();const watches=['appLoadingIndicator','stateText','stateList','stateGrid'].includes(selected.type),action=bootstrap.actions.find(item=>item.id===e.target.value);selected.action=action?{action_id:action.id,method:watches?'watch':'execute',arguments:watches?{}:defaultArguments(action)}:undefined;renderInspector()};
   $('successRoute').onchange=e=>{if(selected.action){checkpoint();selected.action.on_success_route=e.target.value||undefined}};
   $('undo').onclick=undo;$('redo').onclick=redo;$('duplicate').onclick=duplicateSelected;
   $('remove').onclick=removeSelected;

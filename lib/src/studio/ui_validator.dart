@@ -183,6 +183,12 @@ class UiSchemaValidator {
         }
       }
       final binding = node.action;
+      if ((node.type == 'stateList' || node.type == 'stateGrid') &&
+          binding == null) {
+        issues.add(
+          UiValidationIssue(path, '${node.type} requires an API action.'),
+        );
+      }
       if (binding != null) {
         final action = actionsById[binding.actionId];
         if (action == null) {
@@ -207,6 +213,33 @@ class UiSchemaValidator {
                   'Unknown state binding $stateBinding.',
                 ),
               );
+            }
+          }
+          if (node.type == 'stateList' || node.type == 'stateGrid') {
+            final listPath = node.properties['binding']?.toString() ?? '';
+            final listField = _findResponseField(
+              action.responseFields,
+              listPath,
+            );
+            if (listField == null || !listField.isList) {
+              issues.add(
+                UiValidationIssue(
+                  '$path.properties.binding',
+                  'Select a list-valued response binding.',
+                ),
+              );
+            } else {
+              final itemPath =
+                  node.properties['itemTextPath']?.toString() ?? '';
+              final itemPaths = _responseItemPaths(listField.children).toSet();
+              if (itemPath.isNotEmpty && !itemPaths.contains(itemPath)) {
+                issues.add(
+                  UiValidationIssue(
+                    '$path.properties.itemTextPath',
+                    'Unknown list item binding $itemPath.',
+                  ),
+                );
+              }
             }
           }
           if (binding.method != 'watch') {
@@ -283,6 +316,34 @@ Iterable<String> _responsePaths(
       yield path;
     } else {
       yield* _responsePaths(field.children, path);
+    }
+  }
+}
+
+StudioDataField? _findResponseField(
+  Iterable<StudioDataField> fields,
+  String path, [
+  String prefix = 'data',
+]) {
+  for (final field in fields) {
+    final current = '$prefix.${field.name}';
+    if (current == path) return field;
+    final nested = _findResponseField(field.children, path, current);
+    if (nested != null) return nested;
+  }
+  return null;
+}
+
+Iterable<String> _responseItemPaths(
+  Iterable<StudioDataField> fields, [
+  String prefix = '',
+]) sync* {
+  for (final field in fields) {
+    final path = prefix.isEmpty ? field.name : '$prefix.${field.name}';
+    if (field.isList || field.children.isEmpty) {
+      yield path;
+    } else {
+      yield* _responseItemPaths(field.children, path);
     }
   }
 }

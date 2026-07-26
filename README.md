@@ -212,7 +212,9 @@ Text fields support generated required, minimum-length, maximum-length, regular-
 
 Nested request entities are rendered as structured parameter groups. Object-list parameters provide add/remove item controls, primitive lists accept JSON arrays, and every nested leaf can bind to a visual input. Generated code constructs the correct nested request entities and validates every list item before executing the action.
 
-Generated action metadata also contains the nested backend response shape. A State Text component can select paths such as `data.status.description` from the inspector instead of manually reading models. Archsmith validates the selected path and emits a null-safe expression for the configured state manager. List-valued response paths are exposed as whole values; visual repeating-list and item-field binding remain a later Studio milestone.
+Generated action metadata also contains the nested backend response shape. A State Text component can select paths such as `data.status.description` from the inspector instead of manually reading models. Archsmith validates the selected path and emits a null-safe expression for the configured state manager.
+
+Response List and Response Grid components bind directly to list-valued response paths, expose nested item text fields, and generate loading, first-page error, empty, pull-to-refresh, spacing, and responsive grid-column presentation without handwritten state branching.
 
 The editable, versioned screen source is stored in `.archsmith/ui/<screen>.json`. Generate or validate the same source without opening a browser:
 

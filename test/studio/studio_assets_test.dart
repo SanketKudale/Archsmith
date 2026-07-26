@@ -34,5 +34,7 @@ void main() {
     expect(StudioAssets.js, contains('function responsePaths'));
     expect(StudioAssets.js, contains('function renderParameter'));
     expect(StudioAssets.js, contains("add.textContent='Add item'"));
+    expect(StudioAssets.js, contains('function responseListPaths'));
+    expect(StudioAssets.js, contains("'stateList','stateGrid'"));
   });
 }

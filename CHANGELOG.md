@@ -21,6 +21,8 @@
   null-safe response-to-text bindings across supported state managers.
 - Added recursive request metadata, nested entity construction, primitive-list
   input, and visual add/remove mapping for request object lists.
+- Added response List/Grid components with nested item bindings and generated
+  loading, error, empty, refresh, spacing, and grid presentation.
 
 ## 0.3.0 - 2026-07-26
 

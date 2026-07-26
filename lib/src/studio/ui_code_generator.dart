@@ -337,6 +337,8 @@ $callbackArguments  );
           'onPressed: ${properties['enabled'] == false ? 'null' : _callback(node.action)})',
       'appLoadingIndicator' => _loadingWidget(node.action),
       'stateText' => _stateText(node, properties),
+      'stateList' => _stateCollection(node, properties, isGrid: false),
+      'stateGrid' => _stateCollection(node, properties, isGrid: true),
       'card' => 'Card('
           'elevation: ${_number(properties['elevation'], 1)}, '
           'child: Padding('
@@ -429,6 +431,76 @@ $callbackArguments  );
         '?.toString() ?? $fallback)';
   }
 
+  String _stateCollection(
+    UiNode node,
+    Map<String, Object?> properties, {
+    required bool isGrid,
+  }) {
+    final binding = node.action;
+    final listPath = properties['binding']?.toString() ?? '';
+    if (binding == null || listPath.isEmpty) {
+      return 'const SizedBox.shrink()';
+    }
+    final action = actions.singleWhere((item) => item.id == binding.actionId);
+    if (config.stateManagement == StateManagementType.none) {
+      return 'const SizedBox.shrink()';
+    }
+    final state = _watchedState(action);
+    final listExpression = _propertyFromState('state', listPath);
+    final itemPath = properties['itemTextPath']?.toString() ?? '';
+    final itemExpression = itemPath.isEmpty ? 'item' : 'item.$itemPath';
+    final emptyText = _string(
+      (properties['emptyText'] ?? 'No items').toString(),
+    );
+    final errorText = _string(
+      (properties['errorText'] ?? 'Could not load items').toString(),
+    );
+    final shrinkWrap = properties['shrinkWrap'] != false;
+    final refreshable = properties['refreshable'] != false;
+    final physics = refreshable
+        ? 'const AlwaysScrollableScrollPhysics()'
+        : shrinkWrap
+            ? 'const NeverScrollableScrollPhysics()'
+            : 'null';
+    final collection = isGrid
+        ? 'GridView.builder('
+            'shrinkWrap: $shrinkWrap, '
+            'physics: $physics, '
+            'gridDelegate: SliverGridDelegateWithFixedCrossAxisCount('
+            'crossAxisCount: ${_integer(properties['columns'], 2)}, '
+            'crossAxisSpacing: ${_number(properties['spacing'], 0)}, '
+            'mainAxisSpacing: ${_number(properties['spacing'], 0)}, '
+            'childAspectRatio: ${_number(properties['childAspectRatio'], 1)}), '
+            'itemCount: items.length, '
+            'itemBuilder: (context, index) { '
+            'final item = items[index]; '
+            'return Card(child: Center(child: Text($itemExpression.toString()))); '
+            '})'
+        : 'ListView.separated('
+            'shrinkWrap: $shrinkWrap, '
+            'physics: $physics, '
+            'itemCount: items.length, '
+            'separatorBuilder: (_, __) => SizedBox(height: ${_number(properties['separator'], 0)}), '
+            'itemBuilder: (context, index) { '
+            'final item = items[index]; '
+            'return Text($itemExpression.toString()); '
+            '})';
+    final presented = refreshable
+        ? 'RefreshIndicator(onRefresh: state.retry, child: $collection)'
+        : collection;
+    final builder = 'Builder(builder: (context) { '
+        'final state = $state; '
+        'final items = $listExpression ?? const []; '
+        'if (state.isLoading && items.isEmpty) return const AppLoadingIndicator(); '
+        'if (state.error != null && items.isEmpty) return Text($errorText); '
+        'if (items.isEmpty) return Text($emptyText); '
+        'return $presented; '
+        '})';
+    return config.stateManagement == StateManagementType.getx
+        ? 'Obx(() => $builder)'
+        : builder;
+  }
+
   String _stateExpression(String actionId, String property) {
     final action = actions.singleWhere((item) => item.id == actionId);
     final state = switch (config.stateManagement) {
@@ -442,13 +514,21 @@ $callbackArguments  );
       StateManagementType.none => 'null',
     };
     if (config.stateManagement == StateManagementType.none) return state;
-    final base = switch (config.stateManagement) {
-      StateManagementType.riverpod => 'ref.watch(${action.target})',
-      StateManagementType.provider => 'context.watch<${action.target}>().state',
-      StateManagementType.bloc => 'context.watch<${action.target}>().state',
-      StateManagementType.getx => 'Get.find<${action.target}>().state.value',
-      StateManagementType.none => 'null',
-    };
+    final base = _watchedState(action);
+    return _propertyFromState(base, property);
+  }
+
+  String _watchedState(StudioActionDescriptor action) =>
+      switch (config.stateManagement) {
+        StateManagementType.riverpod => 'ref.watch(${action.target})',
+        StateManagementType.provider =>
+          'context.watch<${action.target}>().state',
+        StateManagementType.bloc => 'context.watch<${action.target}>().state',
+        StateManagementType.getx => 'Get.find<${action.target}>().state.value',
+        StateManagementType.none => 'null',
+      };
+
+  String _propertyFromState(String base, String property) {
     if (property.startsWith('data.')) {
       return '$base.data?.${property.substring('data.'.length)}';
     }
@@ -799,6 +879,9 @@ $arguments
 
   String _number(Object? value, num fallback) =>
       value is num ? value.toString() : fallback.toString();
+
+  int _integer(Object? value, int fallback) =>
+      value is num && value > 0 ? value.toInt() : fallback;
 
   String _nullableString(Object? value) =>
       value == null ? 'null' : _string(value.toString());
