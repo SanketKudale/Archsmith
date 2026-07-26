@@ -12,30 +12,33 @@ import 'commands/create_command.dart';
 import 'commands/doctor_command.dart';
 import 'commands/generate_command.dart';
 import 'commands/init_command.dart';
+import 'commands/studio_command.dart';
+import 'commands/ui_command.dart';
 
 /// Registers Archsmith commands and maps failures to stable exit codes.
 class ArchsmithRunner {
   ArchsmithRunner({CommandContext? context})
-    : context = context ?? CommandContext() {
-    _runner =
-        CommandRunner<int>(
-            'archsmith',
-            'Generate maintainable Flutter architectures safely.',
-          )
-          ..addCommand(CreateCommand(this.context))
-          ..addCommand(InitCommand(this.context))
-          ..addCommand(ApiCommand(this.context))
-          ..addCommand(ApiCommonCommand(this.context))
-          ..addCommand(ApiDirCommand(this.context))
-          ..addCommand(GenerateCommand(this.context, 'feature'))
-          ..addCommand(GenerateCommand(this.context, 'page'))
-          ..addCommand(GenerateCommand(this.context, 'model'))
-          ..addCommand(GenerateCommand(this.context, 'repository'))
-          ..addCommand(GenerateCommand(this.context, 'service'))
-          ..addCommand(GenerateCommand(this.context, 'usecase'))
-          ..addCommand(GenerateCommand(this.context, 'controller'))
-          ..addCommand(GenerateCommand(this.context, 'widget'))
-          ..addCommand(DoctorCommand(this.context));
+      : context = context ?? CommandContext() {
+    _runner = CommandRunner<int>(
+      'archsmith',
+      'Generate maintainable Flutter architectures safely.',
+    )
+      ..addCommand(CreateCommand(this.context))
+      ..addCommand(InitCommand(this.context))
+      ..addCommand(ApiCommand(this.context))
+      ..addCommand(ApiCommonCommand(this.context))
+      ..addCommand(ApiDirCommand(this.context))
+      ..addCommand(GenerateCommand(this.context, 'feature'))
+      ..addCommand(GenerateCommand(this.context, 'page'))
+      ..addCommand(GenerateCommand(this.context, 'model'))
+      ..addCommand(GenerateCommand(this.context, 'repository'))
+      ..addCommand(GenerateCommand(this.context, 'service'))
+      ..addCommand(GenerateCommand(this.context, 'usecase'))
+      ..addCommand(GenerateCommand(this.context, 'controller'))
+      ..addCommand(GenerateCommand(this.context, 'widget'))
+      ..addCommand(UiCommand(this.context))
+      ..addCommand(StudioCommand(this.context))
+      ..addCommand(DoctorCommand(this.context));
   }
 
   final CommandContext context;

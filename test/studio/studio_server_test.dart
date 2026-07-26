@@ -1,0 +1,116 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:archsmith/archsmith.dart';
+import 'package:path/path.dart' as p;
+import 'package:test/test.dart';
+
+void main() {
+  test('serves metadata, saves schemas, and protects extension pages',
+      () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'archsmith_studio_server_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final server = StudioServer(
+      projectRoot: directory.path,
+      config: const ArchsmithConfig(projectName: 'sample_app'),
+    );
+    final url = await server.start(port: 0);
+    addTearDown(server.close);
+    final client = HttpClient();
+    addTearDown(() => client.close(force: true));
+
+    final bootstrap = await _request(client, url.resolve('/api/bootstrap'));
+    expect(bootstrap.statusCode, HttpStatus.ok);
+    final metadata = jsonDecode(bootstrap.body) as Map<String, dynamic>;
+    expect(metadata['project'], 'sample_app');
+    expect(metadata['components'], isNotEmpty);
+    expect(metadata['actions'], isEmpty);
+
+    final schema = {
+      'version': 1,
+      'name': 'home',
+      'feature': 'home',
+      'route': '/home',
+      'root': {
+        'id': 'page',
+        'type': 'appScaffold',
+        'properties': {'title': 'Home'},
+        'children': [
+          {
+            'id': 'welcome',
+            'type': 'text',
+            'properties': {'text': 'Welcome'},
+          },
+        ],
+      },
+    };
+    final generated = await _request(
+      client,
+      url.resolve('/api/generate'),
+      method: 'POST',
+      body: jsonEncode(schema),
+    );
+    expect(generated.statusCode, HttpStatus.ok, reason: generated.body);
+    final source = File(
+      p.join(directory.path, '.archsmith', 'ui', 'home.json'),
+    );
+    final generatedPage = File(
+      p.join(
+        directory.path,
+        'lib',
+        'features',
+        'home',
+        'presentation',
+        'pages',
+        'home_page.archsmith.dart',
+      ),
+    );
+    final extensionPage = File(
+      p.join(
+        directory.path,
+        'lib',
+        'features',
+        'home',
+        'presentation',
+        'pages',
+        'home_page.dart',
+      ),
+    );
+    expect(source.existsSync(), isTrue);
+    expect(generatedPage.readAsStringSync(), contains('_buildDesktop'));
+    expect(extensionPage.existsSync(), isTrue);
+
+    await extensionPage.writeAsString('// developer customization\n');
+    final regenerated = await _request(
+      client,
+      url.resolve('/api/generate'),
+      method: 'POST',
+      body: jsonEncode(schema),
+    );
+    expect(regenerated.statusCode, HttpStatus.ok, reason: regenerated.body);
+    expect(
+      extensionPage.readAsStringSync(),
+      '// developer customization\n',
+    );
+  });
+}
+
+Future<({int statusCode, String body})> _request(
+  HttpClient client,
+  Uri uri, {
+  String method = 'GET',
+  String? body,
+}) async {
+  final request = await client.openUrl(method, uri);
+  if (body != null) {
+    request.headers.contentType = ContentType.json;
+    request.write(body);
+  }
+  final response = await request.close();
+  return (
+    statusCode: response.statusCode,
+    body: await utf8.decoder.bind(response).join(),
+  );
+}

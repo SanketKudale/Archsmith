@@ -54,6 +54,7 @@ archsmith model payment --feature payments --no-tests
 archsmith widget profile_card
 archsmith api path/to/cusacc.json
 archsmith api-dir path/to/jsons
+archsmith studio
 ```
 
 ## Architectures and integrations
@@ -78,6 +79,8 @@ archsmith service <service_name>
 archsmith usecase <usecase_name>
 archsmith controller <controller_name>
 archsmith widget <widget_name>
+archsmith ui <validate|generate> <screen.json>
+archsmith studio
 archsmith doctor
 ```
 
@@ -190,6 +193,34 @@ Every generated remote datasource uses `ApiRequestCoordinator`. It adds request 
 Offline response caching is disabled initially. `cache-enabled true` enables the generated in-memory cache and `cache-ttl` controls expiration. Implement `ApiResponseCache` with Hive, Isar, SQLite, or another persistent store when cached data must survive application restarts.
 
 Generated presentation state exposes `isLoading`, `data`, `error`, `isEmpty`, `hasData`, `hasError`, and `retry()`. API dependency files are generated for Riverpod, Provider, BLoC/Cubit, GetX, or framework-only `ValueNotifier`, based on `archsmith.yaml`.
+
+Each generated endpoint also writes a typed, searchable action descriptor under `.archsmith/actions`. Studio reads these descriptors directly, so provider/controller calls and their request parameters can be selected without parsing or editing Dart.
+
+## Archsmith Studio
+
+Start the local visual builder inside an initialized Flutter project:
+
+```shell
+archsmith studio
+archsmith studio --port 7332 --no-open
+```
+
+Studio provides a searchable reusable-component palette, drag-and-drop component tree, phone/tablet/desktop previews, a property inspector, and a searchable API-action selector. Request arguments can use literal values or bind to an input with `$field_id.value`. Loading indicators and state text can watch the generated `isLoading`, `data`, `error`, and `isEmpty` contract.
+
+The editable, versioned screen source is stored in `.archsmith/ui/<screen>.json`. Generate or validate the same source without opening a browser:
+
+```shell
+archsmith ui validate .archsmith/ui/account_deactivate.json
+archsmith ui generate .archsmith/ui/account_deactivate.json --dry-run
+archsmith ui generate .archsmith/ui/account_deactivate.json
+```
+
+Generation creates two page files:
+
+- `<screen>_page.archsmith.dart` is deterministic and safe to regenerate.
+- `<screen>_page.dart` is created once as the protected developer extension point.
+
+Studio-generated pages reuse the shared widgets in `lib/shared/widgets`, so changing `AppButton`, `AppTextField`, `AppScaffold`, or `app_component_defaults.dart` updates every generated screen from one place. Screens with routes also update the existing Archsmith route manifest and generated navigation helpers.
 
 ## Route registration
 

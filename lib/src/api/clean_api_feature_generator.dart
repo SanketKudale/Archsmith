@@ -1,6 +1,7 @@
 import '../configuration/archsmith_config.dart';
 import '../models/generation.dart';
 import '../models/options.dart';
+import '../studio/action_registry.dart';
 import '../utils/naming_utils.dart';
 import 'api_code_generator.dart';
 import 'api_common_config.dart';
@@ -145,6 +146,33 @@ class CleanApiFeatureGenerator {
       PlannedFile(
         '$root/presentation/providers/${operation.snakeCase}_provider.dart',
         _operationProvider(operation, config.stateManagement),
+      ),
+      const StudioActionRegistry().plan(
+        '${featureName}_${operation.snakeCase}',
+        StudioActionDescriptor(
+          id: '$featureName.${operation.camelCase}',
+          feature: featureName,
+          operation: operation.camelCase,
+          stateManagement: config.stateManagement.value,
+          target: _actionTarget(config.stateManagement, operation),
+          method: 'execute',
+          requestType: '${prefix}RequestEntity',
+          parameters: requestClasses.last.fields
+              .map(
+                (field) => StudioActionParameter(
+                  name: field.name,
+                  type: field.dartType('Entity'),
+                ),
+              )
+              .toList(growable: false),
+          state: const {
+            'isLoading': 'isLoading',
+            'data': 'data',
+            'error': 'error',
+            'isEmpty': 'isEmpty',
+            'retry': 'retry',
+          },
+        ),
       ),
     ];
   }
@@ -657,6 +685,18 @@ class CleanApiFeatureGenerator {
           "${prefix}Notifier create${prefix}Notifier(${prefix}UseCase useCase) => ${prefix}Notifier(useCase);\n",
     };
   }
+
+  String _actionTarget(
+    StateManagementType stateManagement,
+    NameVariants operation,
+  ) =>
+      switch (stateManagement) {
+        StateManagementType.riverpod => '${operation.camelCase}Provider',
+        StateManagementType.provider => '${operation.pascalCase}Notifier',
+        StateManagementType.bloc => '${operation.pascalCase}Cubit',
+        StateManagementType.getx => '${operation.pascalCase}Controller',
+        StateManagementType.none => '${operation.pascalCase}Notifier',
+      };
 }
 
 class _JsonClass {

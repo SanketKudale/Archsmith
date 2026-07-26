@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Added a local responsive drag-and-drop Studio with reusable components,
+  breakpoint previews, property editing, and searchable API actions.
+- Added versioned UI schemas plus deterministic generated views and protected
+  developer extension pages.
+- Added endpoint action descriptors and UI generation for Riverpod, Provider,
+  BLoC/Cubit, GetX, and callback-based framework-only projects.
+- Added `archsmith studio` and headless `archsmith ui validate|generate`
+  workflows, including automatic route registration.
+
 ## 0.3.0 - 2026-07-26
 
 - Added endpoint-example JSON inference and full Clean Architecture API feature

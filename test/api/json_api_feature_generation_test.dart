@@ -63,7 +63,25 @@ void main() {
         'lib/core/network/auth/api_request_coordinator.dart',
         'lib/core/network/cache/api_response_cache.dart',
         'lib/core/network/cache/memory_api_response_cache.dart',
+        '.archsmith/actions/cusacc_account_deactivate.json',
       }),
+    );
+    final action = jsonDecode(
+      files
+          .singleWhere(
+            (file) =>
+                file.path ==
+                '.archsmith/actions/cusacc_account_deactivate.json',
+          )
+          .content,
+    ) as Map<String, dynamic>;
+    expect(action['id'], 'cusacc.accountDeactivate');
+    expect(action['target'], 'accountDeactivateProvider');
+    expect(action['request_type'], 'AccountDeactivateRequestEntity');
+    expect(
+      (action['parameters'] as List)
+          .map((parameter) => (parameter as Map)['name']),
+      ['fullAccountNumber', 'closingReason'],
     );
     final responseModel = files
         .singleWhere(
