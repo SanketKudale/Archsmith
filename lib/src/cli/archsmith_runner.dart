@@ -8,6 +8,7 @@ import 'command_context.dart';
 import 'commands/api_command.dart';
 import 'commands/api_common_command.dart';
 import 'commands/api_dir_command.dart';
+import 'commands/component_command.dart';
 import 'commands/create_command.dart';
 import 'commands/doctor_command.dart';
 import 'commands/generate_command.dart';
@@ -28,6 +29,7 @@ class ArchsmithRunner {
       ..addCommand(ApiCommand(this.context))
       ..addCommand(ApiCommonCommand(this.context))
       ..addCommand(ApiDirCommand(this.context))
+      ..addCommand(ComponentCommand(this.context))
       ..addCommand(GenerateCommand(this.context, 'feature'))
       ..addCommand(GenerateCommand(this.context, 'page'))
       ..addCommand(GenerateCommand(this.context, 'model'))

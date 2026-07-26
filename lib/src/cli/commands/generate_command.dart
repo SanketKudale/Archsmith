@@ -3,6 +3,8 @@ import 'dart:io';
 import '../../generators/route_registry_generator.dart';
 import '../../models/generation.dart';
 import '../../models/options.dart';
+import '../../studio/component_registry.dart';
+import '../../utils/naming_utils.dart';
 import 'base_command.dart';
 
 class GenerateCommand extends ArchsmithCommand {
@@ -31,8 +33,7 @@ class GenerateCommand extends ArchsmithCommand {
     }
     final config = readConfig();
     final rawName = argResults!.rest.first;
-    final feature =
-        kind != 'feature' &&
+    final feature = kind != 'feature' &&
             kind != 'widget' &&
             argResults!.wasParsed('feature')
         ? argResults!['feature'] as String
@@ -44,6 +45,23 @@ class GenerateCommand extends ArchsmithCommand {
       feature: feature,
       withTests: options.withTests,
     );
+    if (kind == 'widget') {
+      final widget = names(rawName);
+      files.add(
+        const StudioComponentManifestStore().plan(
+          Directory.current.path,
+          StudioComponentDescriptor(
+            type: widget.camelCase,
+            label: _words(widget.pascalCase),
+            category: 'Project',
+            acceptsChildren: false,
+            dartClass: '${widget.pascalCase}Widget',
+            importPath:
+                'package:${config.projectName}/shared/widgets/${widget.snakeCase}_widget.dart',
+          ),
+        ),
+      );
+    }
     if (kind == 'page' && argResults!.wasParsed('route')) {
       if (config.router == RouterType.autoRoute) {
         final pageIndex = files.indexWhere(
@@ -80,4 +98,11 @@ class GenerateCommand extends ArchsmithCommand {
     }
     return printResult(result);
   }
+
+  String _words(String value) => value
+      .replaceAllMapped(
+        RegExp(r'(?<=[a-z0-9])(?=[A-Z])'),
+        (_) => ' ',
+      )
+      .trim();
 }

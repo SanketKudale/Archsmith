@@ -6,6 +6,7 @@ import '../../generators/route_registry_generator.dart';
 import '../../models/generation.dart';
 import '../../models/options.dart';
 import '../../studio/action_registry.dart';
+import '../../studio/component_registry.dart';
 import '../../studio/ui_code_generator.dart';
 import '../../studio/ui_schema.dart';
 import '../../studio/ui_validator.dart';
@@ -44,7 +45,10 @@ class UiCommand extends ArchsmithCommand {
     );
     final schema = const UiSchemaStore().read(path);
     final actions = const StudioActionRegistry().readAll(root);
-    final issues = const UiSchemaValidator().validate(
+    final components = StudioComponentRegistry(
+      custom: const StudioComponentManifestStore().readAll(root),
+    );
+    final issues = UiSchemaValidator(components: components).validate(
       schema,
       actions: actions,
     );
@@ -65,6 +69,7 @@ class UiCommand extends ArchsmithCommand {
         config: config,
         schema: schema,
         actions: actions,
+        components: components,
       ),
       if (schema.route != null && config.router != RouterType.none)
         ...const RouteRegistryGenerator().register(

@@ -16,6 +16,23 @@ void main() {
       projectRoot: directory.path,
       config: const ArchsmithConfig(projectName: 'sample_app'),
     );
+    await const LocalFileSystemService().apply(
+      directory.path,
+      [
+        const StudioComponentManifestStore().plan(
+          directory.path,
+          const StudioComponentDescriptor(
+            type: 'projectBanner',
+            label: 'Project Banner',
+            category: 'Project',
+            acceptsChildren: false,
+            dartClass: 'ProjectBanner',
+            importPath: 'package:sample_app/shared/widgets/project_banner.dart',
+          ),
+        ),
+      ],
+      const GenerationOptions(),
+    );
     final url = await server.start(port: 0);
     addTearDown(server.close);
     final client = HttpClient();
@@ -26,6 +43,11 @@ void main() {
     final metadata = jsonDecode(bootstrap.body) as Map<String, dynamic>;
     expect(metadata['project'], 'sample_app');
     expect(metadata['components'], isNotEmpty);
+    expect(
+      (metadata['components'] as List)
+          .map((item) => (item as Map<String, dynamic>)['type']),
+      contains('projectBanner'),
+    );
     expect(metadata['actions'], isEmpty);
 
     final schema = {

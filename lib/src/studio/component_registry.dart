@@ -1,3 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:path/path.dart' as p;
+
+import '../models/generation.dart';
+
 /// Metadata for one widget available in the visual component palette.
 class StudioComponentDescriptor {
   const StudioComponentDescriptor({
@@ -7,7 +14,36 @@ class StudioComponentDescriptor {
     required this.acceptsChildren,
     this.defaults = const {},
     this.properties = const [],
+    this.dartClass,
+    this.importPath,
+    this.childParameter,
   });
+
+  factory StudioComponentDescriptor.fromJson(Map<String, Object?> json) {
+    final properties = json['properties'];
+    if (properties != null && properties is! List) {
+      throw const FormatException('Component properties must be a list.');
+    }
+    return StudioComponentDescriptor(
+      type: _requiredString(json, 'type'),
+      label: _requiredString(json, 'label'),
+      category: _requiredString(json, 'category'),
+      acceptsChildren: json['accepts_children'] as bool? ?? false,
+      defaults: Map.unmodifiable(
+        Map<String, Object?>.from(json['defaults'] as Map? ?? const {}),
+      ),
+      properties: (properties as List? ?? const [])
+          .map(
+            (item) => StudioPropertyDescriptor.fromJson(
+              Map<String, Object?>.from(item as Map),
+            ),
+          )
+          .toList(growable: false),
+      dartClass: json['dart_class'] as String?,
+      importPath: json['import'] as String?,
+      childParameter: json['child_parameter'] as String?,
+    );
+  }
 
   final String type;
   final String label;
@@ -15,6 +51,9 @@ class StudioComponentDescriptor {
   final bool acceptsChildren;
   final Map<String, Object?> defaults;
   final List<StudioPropertyDescriptor> properties;
+  final String? dartClass;
+  final String? importPath;
+  final String? childParameter;
 
   Map<String, Object?> toJson() => {
         'type': type,
@@ -23,6 +62,9 @@ class StudioComponentDescriptor {
         'accepts_children': acceptsChildren,
         'defaults': defaults,
         'properties': properties.map((item) => item.toJson()).toList(),
+        if (dartClass != null) 'dart_class': dartClass,
+        if (importPath != null) 'import': importPath,
+        if (childParameter != null) 'child_parameter': childParameter,
       };
 }
 
@@ -34,6 +76,16 @@ class StudioPropertyDescriptor {
     this.label,
     this.options = const [],
   });
+
+  factory StudioPropertyDescriptor.fromJson(Map<String, Object?> json) =>
+      StudioPropertyDescriptor(
+        _requiredString(json, 'name'),
+        _requiredString(json, 'type'),
+        label: json['label'] as String?,
+        options: (json['options'] as List? ?? const [])
+            .map((item) => item.toString())
+            .toList(growable: false),
+      );
 
   final String name;
   final String type;
@@ -50,19 +102,90 @@ class StudioPropertyDescriptor {
 
 /// Built-in responsive and shared components supported by the MVP generator.
 class StudioComponentRegistry {
-  const StudioComponentRegistry();
+  const StudioComponentRegistry({this.custom = const []});
 
-  List<StudioComponentDescriptor> get components => _components;
+  final List<StudioComponentDescriptor> custom;
+
+  List<StudioComponentDescriptor> get components => [
+        ..._components,
+        ...custom,
+      ];
 
   StudioComponentDescriptor? find(String type) {
-    for (final component in _components) {
+    for (final component in components) {
       if (component.type == type) return component;
     }
     return null;
   }
 
   List<Map<String, Object?>> toJson() =>
-      _components.map((item) => item.toJson()).toList(growable: false);
+      components.map((item) => item.toJson()).toList(growable: false);
+}
+
+/// Persists project-specific common widgets exposed in Studio.
+class StudioComponentManifestStore {
+  const StudioComponentManifestStore();
+
+  List<StudioComponentDescriptor> readAll(String projectRoot) {
+    final file = File(_path(projectRoot));
+    if (!file.existsSync()) return const [];
+    final decoded = jsonDecode(file.readAsStringSync());
+    if (decoded is! Map || decoded['components'] is! List) {
+      throw const FormatException(
+        '.archsmith/components.json must contain a components list.',
+      );
+    }
+    return (decoded['components'] as List)
+        .map(
+          (item) => StudioComponentDescriptor.fromJson(
+            Map<String, Object?>.from(item as Map),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  PlannedFile plan(
+    String projectRoot,
+    StudioComponentDescriptor component,
+  ) {
+    if (const StudioComponentRegistry().find(component.type) != null) {
+      throw FormatException(
+        '${component.type} is a built-in component and cannot be replaced.',
+      );
+    }
+    if (component.dartClass == null || component.importPath == null) {
+      throw const FormatException(
+        'Custom components require dart_class and import.',
+      );
+    }
+    if (component.acceptsChildren &&
+        component.childParameter != 'child' &&
+        component.childParameter != 'children') {
+      throw const FormatException(
+        'A component with children requires child_parameter child or children.',
+      );
+    }
+    final components = readAll(projectRoot).toList();
+    final index = components.indexWhere(
+      (existing) => existing.type == component.type,
+    );
+    if (index < 0) {
+      components.add(component);
+    } else {
+      components[index] = component;
+    }
+    components.sort((left, right) => left.type.compareTo(right.type));
+    return PlannedFile(
+      '.archsmith/components.json',
+      '${const JsonEncoder.withIndent('  ').convert({
+            'version': 1,
+            'components': components.map((item) => item.toJson()).toList(),
+          })}\n',
+      isUpdate: true,
+    );
+  }
+
+  String _path(String root) => p.join(root, '.archsmith', 'components.json');
 }
 
 const _axis = StudioPropertyDescriptor(
@@ -208,3 +331,11 @@ const _components = <StudioComponentDescriptor>[
     properties: [StudioPropertyDescriptor('size', 'number')],
   ),
 ];
+
+String _requiredString(Map<String, Object?> source, String key) {
+  final value = source[key];
+  if (value is! String || value.trim().isEmpty) {
+    throw FormatException('$key must be a non-empty string.');
+  }
+  return value.trim();
+}

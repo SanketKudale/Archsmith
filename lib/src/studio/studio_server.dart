@@ -107,8 +107,9 @@ class StudioServer {
       );
     }
     if (request.method == 'GET' && path == '/api/bootstrap') {
+      final components = _components();
       return _json(request.response, HttpStatus.ok, {
-        'components': const StudioComponentRegistry().toJson(),
+        'components': components.toJson(),
         'actions': _actions().map((action) => action.toJson()).toList(),
         'breakpoints':
             defaultUiBreakpoints.map((item) => item.toJson()).toList(),
@@ -126,7 +127,8 @@ class StudioServer {
         (path == '/api/screens' || path == '/api/generate')) {
       final schema = await _readSchema(request);
       final actions = _actions();
-      final issues = const UiSchemaValidator().validate(
+      final components = _components();
+      final issues = UiSchemaValidator(components: components).validate(
         schema,
         actions: actions,
       );
@@ -147,6 +149,7 @@ class StudioServer {
           config: config,
           schema: schema,
           actions: actions,
+          components: components,
           includeExtensionFile: !File(wrapperPath).existsSync(),
         ),
         if (schema.route != null && config.router != RouterType.none)
@@ -189,6 +192,10 @@ class StudioServer {
 
   List<StudioActionDescriptor> _actions() =>
       const StudioActionRegistry().readAll(projectRoot);
+
+  StudioComponentRegistry _components() => StudioComponentRegistry(
+        custom: const StudioComponentManifestStore().readAll(projectRoot),
+      );
 
   Future<UiScreenSchema> _readSchema(HttpRequest request) async {
     final body = await utf8.decoder.bind(request).join();

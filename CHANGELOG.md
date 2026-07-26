@@ -10,6 +10,9 @@
   BLoC/Cubit, GetX, and callback-based framework-only projects.
 - Added `archsmith studio` and headless `archsmith ui validate|generate`
   workflows, including automatic route registration.
+- Added project common-component manifests, automatic Studio registration for
+  `archsmith widget`, and `archsmith component add|list` for constructor
+  properties and child contracts.
 
 ## 0.3.0 - 2026-07-26
 

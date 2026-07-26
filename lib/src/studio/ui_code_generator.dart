@@ -3,6 +3,7 @@ import '../models/generation.dart';
 import '../models/options.dart';
 import '../utils/naming_utils.dart';
 import 'action_registry.dart';
+import 'component_registry.dart';
 import 'ui_schema.dart';
 import 'ui_validator.dart';
 
@@ -14,9 +15,10 @@ class UiCodeGenerator {
     required ArchsmithConfig config,
     required UiScreenSchema schema,
     required List<StudioActionDescriptor> actions,
+    StudioComponentRegistry components = const StudioComponentRegistry(),
     bool includeExtensionFile = true,
   }) {
-    final issues = const UiSchemaValidator().validate(
+    final issues = UiSchemaValidator(components: components).validate(
       schema,
       actions: actions,
     );
@@ -45,6 +47,7 @@ class UiCodeGenerator {
       schema: schema,
       actions: selectedActions,
       textFields: textFields,
+      components: components,
     );
     final directory = _pageDirectory(config, feature);
     final files = <PlannedFile>[
@@ -81,12 +84,14 @@ class _FlutterRenderer {
     required this.schema,
     required this.actions,
     required this.textFields,
+    required this.components,
   });
 
   final ArchsmithConfig config;
   final UiScreenSchema schema;
   final List<StudioActionDescriptor> actions;
   final List<UiNode> textFields;
+  final StudioComponentRegistry components;
 
   String generatedSource(String classPrefix) {
     final imports = _imports();
@@ -236,6 +241,13 @@ $callbackArguments  );
         );
       }
     }
+    for (final node in _nodes(schema.root)) {
+      final component = components.find(node.type);
+      final importPath = component?.importPath;
+      if (importPath != null) {
+        values.add("import '$importPath';");
+      }
+    }
     final sorted = values.toList()..sort();
     return sorted.join('\n');
   }
@@ -322,8 +334,47 @@ $callbackArguments  );
           'child: $child))',
       'spacer' =>
         'SizedBox(height: ${_number(properties['size'], 16)}, width: ${_number(properties['size'], 16)})',
-      _ => 'const SizedBox.shrink()',
+      _ => _customWidget(node, properties, children, child),
     };
+  }
+
+  String _customWidget(
+    UiNode node,
+    Map<String, Object?> properties,
+    List<String> children,
+    String child,
+  ) {
+    final component = components.find(node.type);
+    if (component?.dartClass == null) return 'const SizedBox.shrink()';
+    final arguments = component!.properties
+        .where((property) => properties[property.name] != null)
+        .map(
+          (property) =>
+              '${property.name}: ${_propertyValue(properties[property.name], property.type)}',
+        )
+        .toList();
+    if (component.acceptsChildren) {
+      if (component.childParameter == 'children') {
+        arguments.add('children: [${children.join(', ')}]');
+      } else {
+        arguments.add('child: $child');
+      }
+    }
+    return '${component.dartClass}(${arguments.join(', ')})';
+  }
+
+  String _propertyValue(Object? value, String type) {
+    if (type == 'boolean') return value == true ? 'true' : 'false';
+    if (type == 'number' && value is num) return value.toString();
+    if (type == 'color' && value is String) {
+      final color = _colorValue('color', value);
+      if (color.isNotEmpty) {
+        return color
+            .replaceFirst('color: ', '')
+            .replaceFirst(RegExp(r', $'), '');
+      }
+    }
+    return _string(value.toString());
   }
 
   String _axisWidget(

@@ -79,6 +79,7 @@ archsmith service <service_name>
 archsmith usecase <usecase_name>
 archsmith controller <controller_name>
 archsmith widget <widget_name>
+archsmith component <add|list> [component_name]
 archsmith ui <validate|generate> <screen.json>
 archsmith studio
 archsmith doctor
@@ -221,6 +222,22 @@ Generation creates two page files:
 - `<screen>_page.dart` is created once as the protected developer extension point.
 
 Studio-generated pages reuse the shared widgets in `lib/shared/widgets`, so changing `AppButton`, `AppTextField`, `AppScaffold`, or `app_component_defaults.dart` updates every generated screen from one place. Screens with routes also update the existing Archsmith route manifest and generated navigation helpers.
+
+Every widget created with `archsmith widget` is automatically registered in the Studio `Project` palette. After adding constructor properties or child content to an existing common widget, update its visual contract without duplicating the widget:
+
+```shell
+archsmith widget status_chip
+
+archsmith component add profile_card \
+  --class ProfileCardWidget \
+  --children \
+  --property title:string \
+  --property tone:select:light,dark
+
+archsmith component list
+```
+
+Project component metadata is stored in `.archsmith/components.json`. Use `--import` when the widget lives outside the default `lib/shared/widgets/<name>_widget.dart` location, and `--child-parameter children` for widgets whose constructor accepts a widget list. Generated screens import and instantiate the original common widget, so editing that widget once updates every screen that reuses it.
 
 ## Route registration
 
