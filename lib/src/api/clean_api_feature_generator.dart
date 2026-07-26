@@ -172,9 +172,29 @@ class CleanApiFeatureGenerator {
             'isEmpty': 'isEmpty',
             'retry': 'retry',
           },
+          responseFields: _studioFields(responseClasses),
         ),
       ),
     ];
+  }
+
+  List<StudioDataField> _studioFields(List<_JsonClass> classes) {
+    final classesByName = {
+      for (final schema in classes) schema.name: schema,
+    };
+
+    List<StudioDataField> fields(_JsonClass schema) =>
+        schema.fields.map((field) {
+          final nested = field.isCustom ? classesByName[field.type] : null;
+          return StudioDataField(
+            name: field.name,
+            type: field.dartType('Entity'),
+            isList: field.isList,
+            children: nested == null ? const [] : fields(nested),
+          );
+        }).toList(growable: false);
+
+    return fields(classes.last);
   }
 
   List<_JsonClass> _inferClasses(

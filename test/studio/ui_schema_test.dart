@@ -168,4 +168,43 @@ void main() {
       ]),
     );
   });
+
+  test('reports response bindings that are not in action metadata', () {
+    const schema = UiScreenSchema(
+      name: 'invalid_response',
+      root: UiNode(
+        id: 'message',
+        type: 'stateText',
+        properties: {'binding': 'data.missing'},
+        action: UiActionBinding(
+          actionId: 'items.load',
+          method: 'watch',
+        ),
+      ),
+    );
+    const action = StudioActionDescriptor(
+      id: 'items.load',
+      feature: 'items',
+      operation: 'load',
+      stateManagement: 'riverpod',
+      target: 'loadProvider',
+      method: 'execute',
+      requestType: 'LoadRequestEntity',
+      parameters: [],
+      responseFields: [
+        StudioDataField(name: 'message', type: 'String'),
+      ],
+      state: {'data': 'data', 'error': 'error'},
+    );
+
+    final issues = const UiSchemaValidator().validate(
+      schema,
+      actions: const [action],
+    );
+
+    expect(
+      issues.map((issue) => issue.message),
+      contains('Unknown state binding data.missing.'),
+    );
+  });
 }

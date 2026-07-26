@@ -17,6 +17,7 @@ class StudioActionDescriptor {
     required this.requestType,
     required this.parameters,
     this.state = const {},
+    this.responseFields = const [],
   });
 
   factory StudioActionDescriptor.fromJson(Map<String, Object?> json) {
@@ -42,6 +43,13 @@ class StudioActionDescriptor {
       state: Map.unmodifiable(
         Map<String, Object?>.from(json['state'] as Map? ?? const {}),
       ),
+      responseFields: (json['response_fields'] as List? ?? const [])
+          .map(
+            (item) => StudioDataField.fromJson(
+              Map<String, Object?>.from(item as Map),
+            ),
+          )
+          .toList(growable: false),
     );
   }
 
@@ -54,6 +62,7 @@ class StudioActionDescriptor {
   final String requestType;
   final List<StudioActionParameter> parameters;
   final Map<String, Object?> state;
+  final List<StudioDataField> responseFields;
 
   Map<String, Object?> toJson() => {
         'id': id,
@@ -65,6 +74,7 @@ class StudioActionDescriptor {
         'request_type': requestType,
         'parameters': parameters.map((item) => item.toJson()).toList(),
         'state': state,
+        'response_fields': responseFields.map((item) => item.toJson()).toList(),
       };
 }
 
@@ -91,6 +101,43 @@ class StudioActionParameter {
         'name': name,
         'type': type,
         'required': required,
+      };
+}
+
+/// One response field available for visual state binding.
+class StudioDataField {
+  const StudioDataField({
+    required this.name,
+    required this.type,
+    this.isList = false,
+    this.children = const [],
+  });
+
+  factory StudioDataField.fromJson(Map<String, Object?> json) =>
+      StudioDataField(
+        name: _required(json, 'name'),
+        type: _required(json, 'type'),
+        isList: json['is_list'] as bool? ?? false,
+        children: (json['children'] as List? ?? const [])
+            .map(
+              (item) => StudioDataField.fromJson(
+                Map<String, Object?>.from(item as Map),
+              ),
+            )
+            .toList(growable: false),
+      );
+
+  final String name;
+  final String type;
+  final bool isList;
+  final List<StudioDataField> children;
+
+  Map<String, Object?> toJson() => {
+        'name': name,
+        'type': type,
+        'is_list': isList,
+        if (children.isNotEmpty)
+          'children': children.map((item) => item.toJson()).toList(),
       };
 }
 

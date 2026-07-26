@@ -95,6 +95,22 @@ class UiSchemaValidator {
             ),
           );
         } else {
+          if (node.type == 'stateText') {
+            final stateBinding =
+                node.properties['binding']?.toString() ?? 'error';
+            final available = <String>{
+              ...action.state.keys,
+              ..._responsePaths(action.responseFields),
+            };
+            if (!available.contains(stateBinding)) {
+              issues.add(
+                UiValidationIssue(
+                  '$path.properties.binding',
+                  'Unknown state binding $stateBinding.',
+                ),
+              );
+            }
+          }
           if (binding.method != 'watch') {
             for (final parameter in action.parameters) {
               if (!binding.arguments.containsKey(parameter.name)) {
@@ -180,4 +196,18 @@ bool _literalMatches(Object? value, String type) {
     'dynamic' => true,
     _ => false,
   };
+}
+
+Iterable<String> _responsePaths(
+  Iterable<StudioDataField> fields, [
+  String prefix = 'data',
+]) sync* {
+  for (final field in fields) {
+    final path = '$prefix.${field.name}';
+    if (field.isList || field.children.isEmpty) {
+      yield path;
+    } else {
+      yield* _responsePaths(field.children, path);
+    }
+  }
 }

@@ -83,6 +83,16 @@ void main() {
           .map((parameter) => (parameter as Map)['name']),
       ['fullAccountNumber', 'closingReason'],
     );
+    final responseFields = action['response_fields'] as List;
+    final statusField = responseFields
+        .cast<Map<String, dynamic>>()
+        .singleWhere((field) => field['name'] == 'status');
+    expect(
+      (statusField['children'] as List)
+          .cast<Map<String, dynamic>>()
+          .map((field) => field['name']),
+      ['code', 'description'],
+    );
     final responseModel = files
         .singleWhere(
           (file) => file.path.endsWith(

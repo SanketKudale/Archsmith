@@ -218,7 +218,9 @@ function renderInspector(){
     else if(property.type==='binding'){
       input=document.createElement('select');input.add(new Option('Choose state value',''));
       const action=bootstrap.actions.find(item=>item.id===selected.action?.action_id);
-      Object.keys(action?.state||{isLoading:'isLoading',data:'data',error:'error',isEmpty:'isEmpty'}).forEach(v=>input.add(new Option(v,v)));
+      const paths=new Set(Object.keys(action?.state||{isLoading:'isLoading',data:'data',error:'error',isEmpty:'isEmpty'}));
+      responsePaths(action?.response_fields||[]).forEach(path=>paths.add(path));
+      paths.forEach(v=>input.add(new Option(v,v)));
     }
     else {input=document.createElement('input');input.type=property.type==='boolean'?'checkbox':property.type==='number'?'number':property.type==='color'?'color':'text'}
     const value=propertySource[property.name]??selected.properties?.[property.name];
@@ -259,6 +261,13 @@ function renderArguments(){
   });
 }
 function allNodes(root){return [root,...(root.children||[]).flatMap(allNodes)]}
+function responsePaths(fields,prefix='data'){
+  return fields.flatMap(field=>{
+    const path=`${prefix}.${field.name}`;
+    if(field.is_list||!field.children?.length)return [path];
+    return responsePaths(field.children,path);
+  });
+}
 function fieldSource(value){const match=typeof value==='string'&&value.match(/^\$(.+)\.value$/);return match?match[1]:null}
 function normalize(value){return `${value||''}`.toLowerCase().replace(/[^a-z0-9]/g,'')}
 function defaultArguments(action){

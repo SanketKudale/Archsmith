@@ -431,7 +431,7 @@ $callbackArguments  );
 
   String _stateExpression(String actionId, String property) {
     final action = actions.singleWhere((item) => item.id == actionId);
-    return switch (config.stateManagement) {
+    final state = switch (config.stateManagement) {
       StateManagementType.riverpod => 'ref.watch(${action.target}).$property',
       StateManagementType.provider =>
         'context.watch<${action.target}>().state.$property',
@@ -441,6 +441,21 @@ $callbackArguments  );
         'Get.find<${action.target}>().state.value.$property',
       StateManagementType.none => 'null',
     };
+    if (config.stateManagement == StateManagementType.none) return state;
+    final base = switch (config.stateManagement) {
+      StateManagementType.riverpod => 'ref.watch(${action.target})',
+      StateManagementType.provider => 'context.watch<${action.target}>().state',
+      StateManagementType.bloc => 'context.watch<${action.target}>().state',
+      StateManagementType.getx => 'Get.find<${action.target}>().state.value',
+      StateManagementType.none => 'null',
+    };
+    if (property.startsWith('data.')) {
+      return '$base.data?.${property.substring('data.'.length)}';
+    }
+    if (property.startsWith('error.')) {
+      return '$base.error?.${property.substring('error.'.length)}';
+    }
+    return '$base.$property';
   }
 
   String _actionMethod(StudioActionDescriptor action) {

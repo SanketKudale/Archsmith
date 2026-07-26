@@ -31,5 +31,6 @@ void main() {
     expect(StudioAssets.js, contains('function moveNode'));
     expect(StudioAssets.js, contains('function checkpoint'));
     expect(StudioAssets.js, contains("property.type==='binding'"));
+    expect(StudioAssets.js, contains('function responsePaths'));
   });
 }

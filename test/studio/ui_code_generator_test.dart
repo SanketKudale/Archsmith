@@ -19,6 +19,16 @@ void main() {
         StudioActionParameter(name: 'fullAccountNumber', type: 'String'),
         StudioActionParameter(name: 'closingReason', type: 'int'),
       ],
+      responseFields: [
+        StudioDataField(
+          name: 'status',
+          type: 'AccountDeactivateResponseStatusEntity',
+          children: [
+            StudioDataField(name: 'code', type: 'String'),
+            StudioDataField(name: 'description', type: 'String'),
+          ],
+        ),
+      ],
     );
     const schema = UiScreenSchema(
       name: 'account_deactivate',
@@ -67,6 +77,18 @@ void main() {
                   onSuccessRoute: '/done',
                 ),
               ),
+              UiNode(
+                id: 'result',
+                type: 'stateText',
+                properties: {
+                  'binding': 'data.status.description',
+                  'fallback': 'No result',
+                },
+                action: UiActionBinding(
+                  actionId: 'cusacc.accountDeactivate',
+                  method: 'watch',
+                ),
+              ),
             ],
           ),
         ],
@@ -101,6 +123,13 @@ void main() {
     expect(
       generated,
       contains("Navigator.of(context).pushNamed('/done')"),
+    );
+    expect(
+      generated,
+      contains(
+        'ref.watch(accountDeactivateProvider)'
+        '.data?.status.description',
+      ),
     );
     expect(
       files.singleWhere((file) => file.path.endsWith('_page.dart')).content,
@@ -147,6 +176,9 @@ void main() {
         parameters: const [
           StudioActionParameter(name: 'query', type: 'String'),
         ],
+        responseFields: const [
+          StudioDataField(name: 'message', type: 'String'),
+        ],
       );
       const schema = UiScreenSchema(
         name: 'items',
@@ -166,6 +198,15 @@ void main() {
             UiNode(
               id: 'loading',
               type: 'appLoadingIndicator',
+              action: UiActionBinding(
+                actionId: 'items.load',
+                method: 'watch',
+              ),
+            ),
+            UiNode(
+              id: 'message',
+              type: 'stateText',
+              properties: {'binding': 'data.message'},
               action: UiActionBinding(
                 actionId: 'items.load',
                 method: 'watch',

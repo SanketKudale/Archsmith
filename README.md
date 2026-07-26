@@ -210,6 +210,8 @@ Studio provides a searchable reusable-component palette, drag-and-drop component
 
 Text fields support generated required, minimum-length, maximum-length, regular-expression, trimming, and custom-message validation. Numeric and boolean request values are safely converted before calling the provider/controller. When a button has a success route, generated code checks the action state after execution and navigates only when no backend error was reported.
 
+Generated action metadata also contains the nested backend response shape. A State Text component can select paths such as `data.status.description` from the inspector instead of manually reading models. Archsmith validates the selected path and emits a null-safe expression for the configured state manager. List-valued response paths are exposed as whole values; visual repeating-list and item-field binding remain a later Studio milestone.
+
 The editable, versioned screen source is stored in `.archsmith/ui/<screen>.json`. Generate or validate the same source without opening a browser:
 
 ```shell

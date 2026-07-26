@@ -17,6 +17,8 @@
   dropdown-based generated state bindings.
 - Added automatic form-field matching, generated input validation, safe typed
   request conversion, and error-aware success navigation.
+- Added nested response metadata, validated response-field dropdowns, and
+  null-safe response-to-text bindings across supported state managers.
 
 ## 0.3.0 - 2026-07-26
 
