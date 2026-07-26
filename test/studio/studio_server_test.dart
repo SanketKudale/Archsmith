@@ -33,6 +33,9 @@ void main() {
       ],
       const GenerationOptions(),
     );
+    final asset = File(p.join(directory.path, 'assets', 'logo.png'));
+    await asset.parent.create(recursive: true);
+    await asset.writeAsBytes([137, 80, 78, 71]);
     final url = await server.start(port: 0);
     addTearDown(server.close);
     final client = HttpClient();
@@ -50,6 +53,28 @@ void main() {
     );
     expect(metadata['actions'], isEmpty);
     expect(metadata['templates'], isEmpty);
+    expect(metadata['design_tokens'], isA<Map<String, dynamic>>());
+    expect(metadata['localization'], isA<Map<String, dynamic>>());
+    expect(metadata['assets'], contains('assets/logo.png'));
+
+    final savedTokens = await _request(
+      client,
+      url.resolve('/api/design-tokens'),
+      method: 'POST',
+      body: jsonEncode({
+        'colors': {'brand': '#123456'},
+        'spacing': {'content': 16},
+        'radii': {'control': 12},
+        'font_sizes': {'body': 14},
+      }),
+    );
+    expect(savedTokens.statusCode, HttpStatus.ok);
+    expect(
+      File(
+        p.join(directory.path, '.archsmith', 'design_tokens.json'),
+      ).existsSync(),
+      isTrue,
+    );
 
     final schema = {
       'version': 1,

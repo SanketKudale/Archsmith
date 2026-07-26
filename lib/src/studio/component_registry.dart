@@ -212,7 +212,7 @@ const _components = <StudioComponentDescriptor>[
     category: 'Common',
     acceptsChildren: true,
     properties: [
-      StudioPropertyDescriptor('title', 'string'),
+      StudioPropertyDescriptor('title', 'localizedString'),
       StudioPropertyDescriptor('padding', 'number'),
     ],
   ),
@@ -260,7 +260,7 @@ const _components = <StudioComponentDescriptor>[
     acceptsChildren: false,
     defaults: {'text': 'Text'},
     properties: [
-      StudioPropertyDescriptor('text', 'string'),
+      StudioPropertyDescriptor('text', 'localizedString'),
       StudioPropertyDescriptor('fontSize', 'number'),
       StudioPropertyDescriptor('fontWeight', 'select', options: [
         'normal',
@@ -282,8 +282,8 @@ const _components = <StudioComponentDescriptor>[
     acceptsChildren: false,
     defaults: {'required': false, 'trim': true, 'valueType': 'string'},
     properties: [
-      StudioPropertyDescriptor('label', 'string'),
-      StudioPropertyDescriptor('hint', 'string'),
+      StudioPropertyDescriptor('label', 'localizedString'),
+      StudioPropertyDescriptor('hint', 'localizedString'),
       StudioPropertyDescriptor('obscureText', 'boolean'),
       StudioPropertyDescriptor('required', 'boolean'),
       StudioPropertyDescriptor('trim', 'boolean'),
@@ -312,12 +312,36 @@ const _components = <StudioComponentDescriptor>[
       'cancelPrevious': true,
     },
     properties: [
-      StudioPropertyDescriptor('label', 'string'),
+      StudioPropertyDescriptor('label', 'localizedString'),
       StudioPropertyDescriptor('enabled', 'boolean'),
+      StudioPropertyDescriptor('semanticLabel', 'localizedString'),
+      StudioPropertyDescriptor('tooltip', 'localizedString'),
       StudioPropertyDescriptor('confirmationTitle', 'string'),
       StudioPropertyDescriptor('confirmationMessage', 'string'),
       StudioPropertyDescriptor('debounceMs', 'number'),
       StudioPropertyDescriptor('cancelPrevious', 'boolean'),
+    ],
+  ),
+  StudioComponentDescriptor(
+    type: 'imageAsset',
+    label: 'Asset Image',
+    category: 'Content',
+    acceptsChildren: false,
+    defaults: {'fit': 'contain', 'decorative': false},
+    properties: [
+      StudioPropertyDescriptor('asset', 'asset'),
+      StudioPropertyDescriptor('fit', 'select', options: [
+        'contain',
+        'cover',
+        'fill',
+        'fitWidth',
+        'fitHeight',
+        'none',
+      ]),
+      StudioPropertyDescriptor('width', 'number'),
+      StudioPropertyDescriptor('height', 'number'),
+      StudioPropertyDescriptor('semanticLabel', 'localizedString'),
+      StudioPropertyDescriptor('decorative', 'boolean'),
     ],
   ),
   StudioComponentDescriptor(

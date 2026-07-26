@@ -1,5 +1,6 @@
 import 'action_registry.dart';
 import 'component_registry.dart';
+import 'design_system.dart';
 import 'ui_schema.dart';
 
 /// One validation message associated with a screen or node.
@@ -23,6 +24,9 @@ class UiSchemaValidator {
   List<UiValidationIssue> validate(
     UiScreenSchema schema, {
     Iterable<StudioActionDescriptor> actions = const [],
+    StudioDesignTokens designTokens = const StudioDesignTokens(),
+    StudioLocalizationCatalog localization = const StudioLocalizationCatalog(),
+    Iterable<String> assets = const [],
   }) {
     final issues = <UiValidationIssue>[];
     final ids = <String>{};
@@ -73,6 +77,14 @@ class UiSchemaValidator {
       }
     }
     final actionsById = {for (final action in actions) action.id: action};
+    final assetSet = assets.toSet();
+    final localizationKeys = localization.keys.toSet();
+    final tokenKeys = <String>{
+      ...designTokens.colors.keys.map((key) => 'colors.$key'),
+      ...designTokens.spacing.keys.map((key) => 'spacing.$key'),
+      ...designTokens.radii.keys.map((key) => 'radii.$key'),
+      ...designTokens.fontSizes.keys.map((key) => 'fontSizes.$key'),
+    };
     final nodesById = <String, UiNode>{};
 
     void collect(UiNode node) {
@@ -195,6 +207,98 @@ class UiSchemaValidator {
       } else if (!component.acceptsChildren && node.children.isNotEmpty) {
         issues.add(
           UiValidationIssue(path, '${node.type} cannot contain children.'),
+        );
+      }
+      void validateReference(
+        Object? value,
+        String propertyPath, [
+        String? propertyType,
+      ]) {
+        if (value is String && value.startsWith(r'$token.')) {
+          final key = value.substring(r'$token.'.length);
+          if (!tokenKeys.contains(key)) {
+            issues.add(
+              UiValidationIssue(propertyPath, 'Unknown design token $key.'),
+            );
+          } else if (propertyType == 'color' && !key.startsWith('colors.')) {
+            issues.add(
+              UiValidationIssue(
+                propertyPath,
+                'Color properties require a colors token.',
+              ),
+            );
+          } else if (propertyType == 'number' && key.startsWith('colors.')) {
+            issues.add(
+              UiValidationIssue(
+                propertyPath,
+                'Numeric properties cannot use a colors token.',
+              ),
+            );
+          }
+        }
+        if (value is String && value.startsWith(r'$i18n.')) {
+          final key = value.substring(r'$i18n.'.length);
+          if (!localizationKeys.contains(key)) {
+            issues.add(
+              UiValidationIssue(propertyPath, 'Unknown localization key $key.'),
+            );
+          }
+        }
+      }
+
+      for (final entry in node.properties.entries) {
+        final propertyType = _propertyType(component, entry.key);
+        validateReference(
+          entry.value,
+          '$path.properties.${entry.key}',
+          propertyType,
+        );
+      }
+      for (final responsive in node.responsive.entries) {
+        for (final entry in responsive.value.entries) {
+          final propertyType = _propertyType(component, entry.key);
+          validateReference(
+            entry.value,
+            '$path.responsive.${responsive.key}.${entry.key}',
+            propertyType,
+          );
+        }
+      }
+      if (node.type == 'imageAsset') {
+        final asset = node.properties['asset']?.toString() ?? '';
+        if (asset.isEmpty || !assetSet.contains(asset)) {
+          issues.add(
+            UiValidationIssue(
+              '$path.properties.asset',
+              'Select an existing project image asset.',
+            ),
+          );
+        }
+        final decorative = node.properties['decorative'] == true;
+        final semanticLabel =
+            node.properties['semanticLabel']?.toString() ?? '';
+        if (!decorative && semanticLabel.isEmpty) {
+          issues.add(
+            UiValidationIssue(
+              '$path.properties.semanticLabel',
+              'Non-decorative images require a semantic label.',
+            ),
+          );
+        }
+      }
+      if (node.type == 'appButton' &&
+          ((node.properties['label'] ?? component?.defaults['label'])
+                  ?.toString()
+                  .trim()
+                  .isEmpty ??
+              true) &&
+          (node.properties['semanticLabel']?.toString().trim().isEmpty ??
+              true)) {
+        issues.add(
+          UiValidationIssue(
+            path,
+            'Buttons require visible text or a semantic label.',
+          ),
         );
       }
       for (final breakpoint in node.responsive.keys) {
@@ -353,6 +457,17 @@ String? _fieldReference(Object? value) {
 
 bool _isPrimitive(String type) =>
     const {'String', 'int', 'double', 'num', 'bool', 'dynamic'}.contains(type);
+
+String? _propertyType(
+  StudioComponentDescriptor? component,
+  String name,
+) {
+  if (component == null) return null;
+  for (final property in component.properties) {
+    if (property.name == name) return property.type;
+  }
+  return null;
+}
 
 bool _literalMatches(Object? value, String type) {
   if (value == null) return false;

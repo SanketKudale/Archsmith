@@ -44,5 +44,9 @@ void main() {
     expect(StudioAssets.js, contains('function renderBreakpoints'));
     expect(StudioAssets.js, contains('function renderTree'));
     expect(StudioAssets.js, contains('async function deleteScreen'));
+    expect(StudioAssets.html, contains('id="designTokens"'));
+    expect(StudioAssets.html, contains('id="localizationCatalog"'));
+    expect(StudioAssets.js, contains('function tokenOptions'));
+    expect(StudioAssets.js, contains("property.type==='asset'"));
   });
 }

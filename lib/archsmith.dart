@@ -24,6 +24,7 @@ export 'src/services/process_service.dart';
 export 'src/services/template_service.dart';
 export 'src/studio/action_registry.dart';
 export 'src/studio/component_registry.dart';
+export 'src/studio/design_system.dart';
 export 'src/studio/studio_server.dart';
 export 'src/studio/ui_code_generator.dart';
 export 'src/studio/ui_schema.dart';

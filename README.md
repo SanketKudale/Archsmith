@@ -210,6 +210,8 @@ Studio provides a searchable reusable-component palette, drag-and-drop component
 
 Screen management includes new, duplicate, and schema-only delete operations, a selectable component-tree outline, reusable project templates under `.archsmith/ui_templates`, and editable non-overlapping responsive width ranges. Deleting a Studio schema intentionally keeps generated Dart files so developer customizations remain recoverable.
 
+Shared visual values live in `.archsmith/design_tokens.json`; colors, spacing, radii, and font sizes are selectable in the inspector and generate one typed `ArchsmithDesignTokens` class. `.archsmith/localization.json` provides searchable `$i18n.key` values with locale fallback. The Asset Image component lists existing raster files under `assets/`, previews them locally, and requires a semantic label unless marked decorative. Buttons also support generated semantics and tooltips.
+
 Text fields support generated required, minimum-length, maximum-length, regular-expression, trimming, and custom-message validation. Numeric and boolean request values are safely converted before calling the provider/controller. When a button has a success route, generated code checks the action state after execution and navigates only when no backend error was reported.
 
 Nested request entities are rendered as structured parameter groups. Object-list parameters provide add/remove item controls, primitive lists accept JSON arrays, and every nested leaf can bind to a visual input. Generated code constructs the correct nested request entities and validates every list item before executing the action.

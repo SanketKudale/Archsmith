@@ -75,6 +75,14 @@ abstract final class StudioAssets {
       <hr>
       <h2>Responsive ranges</h2>
       <div id="breakpointEditor"></div>
+      <hr>
+      <h2>Shared design tokens</h2>
+      <textarea id="designTokens" rows="10" aria-label="Design token JSON"></textarea>
+      <button id="saveDesignTokens" class="secondary wide">Save tokens</button>
+      <hr>
+      <h2>Localization catalog</h2>
+      <textarea id="localizationCatalog" rows="10" aria-label="Localization JSON"></textarea>
+      <button id="saveLocalization" class="secondary wide">Save strings</button>
     </aside>
   </main>
   <script src="/app.js"></script>
@@ -128,6 +136,8 @@ async function init() {
   };
   bootstrap.screens.forEach(name=>$('screens').add(new Option(name,name)));
   bootstrap.templates.forEach(name=>$('templates').add(new Option(name,name)));
+  $('designTokens').value=JSON.stringify(bootstrap.design_tokens,null,2);
+  $('localizationCatalog').value=JSON.stringify(bootstrap.localization,null,2);
   renderPalette();
   bindControls();
   renderBreakpoints();
@@ -242,6 +252,7 @@ function renderNode(node){
   if(node.type==='text')content.innerHTML=`<div class="preview-text">${escapeHtml(props.text||'Text')}</div>`;
   else if(node.type==='appTextField')content.innerHTML=`<div class="preview-field">${escapeHtml(props.label||props.hint||'Text field')}</div>`;
   else if(node.type==='appButton')content.innerHTML=`<div class="preview-button">${escapeHtml(props.label||'Continue')}</div>`;
+  else if(node.type==='imageAsset')content.innerHTML=props.asset?`<img src="/project-asset/${encodeURIComponent(props.asset)}" alt="${props.decorative?'':escapeHtml(props.semanticLabel||'')}" style="max-width:100%;height:auto">`:'<div class="preview-field">Choose an image asset</div>';
   else if(node.type==='appLoadingIndicator')content.innerHTML='<div class="preview-text">◌ Loading</div>';
   else if(node.type==='stateList'||node.type==='stateGrid'){
     content.className=node.type==='stateGrid'?'preview-row':'preview-column';
@@ -309,10 +320,17 @@ function renderInspector(){
       const field=findResponseField(action?.response_fields||[],selected.properties?.binding);
       responseItemPaths(field?.children||[]).forEach(v=>input.add(new Option(v,v)));
     }
-    else {input=document.createElement('input');input.type=property.type==='boolean'?'checkbox':property.type==='number'?'number':property.type==='color'?'color':'text'}
+    else if(property.type==='asset'){
+      input=document.createElement('select');input.add(new Option('Choose project asset',''));bootstrap.assets.forEach(asset=>input.add(new Option(asset,asset)));
+    }
+    else {
+      input=document.createElement('input');input.type=property.type==='boolean'?'checkbox':'text';
+      const suggestions=property.type==='localizedString'?localizationOptions():property.type==='number'||property.type==='color'?tokenOptions(property):[];
+      if(suggestions.length){const list=document.createElement('datalist');list.id=`options_${selected.id}_${property.name}`;suggestions.forEach(value=>list.appendChild(new Option(value,value)));input.setAttribute('list',list.id);label.appendChild(list)}
+    }
     const value=propertySource[property.name]??selected.properties?.[property.name];
     if(input.type==='checkbox')input.checked=value===true;else input.value=value??'';
-    input.oninput=()=>{checkpoint();propertySource[property.name]=input.type==='checkbox'?input.checked:input.type==='number'?(input.value===''?null:Number(input.value)):input.value;renderCanvas()};
+    input.oninput=()=>{checkpoint();propertySource[property.name]=input.type==='checkbox'?input.checked:property.type==='number'?(input.value===''?null:input.value.startsWith('$token.')?input.value:Number(input.value)):input.value;renderCanvas()};
     label.appendChild(input);host.appendChild(label);
   });
   renderActions($('actionSearch').value);
@@ -419,6 +437,15 @@ function findResponseField(fields,path,prefix='data'){
 function responseItemPaths(fields,prefix=''){
   return fields.flatMap(field=>{const path=prefix?`${prefix}.${field.name}`:field.name;if(field.is_list||!field.children?.length)return [path];return responseItemPaths(field.children,path)});
 }
+function localizationOptions(){
+  const keys=new Set();Object.values(bootstrap.localization?.locales||{}).forEach(locale=>Object.keys(locale).forEach(key=>keys.add(`$i18n.${key}`)));return [...keys].sort();
+}
+function tokenOptions(property){
+  const tokens=bootstrap.design_tokens||{},name=property.name.toLowerCase();
+  const group=property.type==='color'?'colors':name.includes('radius')?'radii':name.includes('font')?'font_sizes':'spacing';
+  const referenceGroup=group==='font_sizes'?'fontSizes':group;
+  return Object.keys(tokens[group]||{}).map(key=>`$token.${referenceGroup}.${key}`);
+}
 function fieldSource(value){const match=typeof value==='string'&&value.match(/^\$(.+)\.value$/);return match?match[1]:null}
 function normalize(value){return `${value||''}`.toLowerCase().replace(/[^a-z0-9]/g,'')}
 function defaultArguments(action){
@@ -461,6 +488,8 @@ function bindControls(){
   };
   $('newScreen').onclick=newScreen;$('duplicateScreen').onclick=duplicateScreen;$('deleteScreen').onclick=deleteScreen;
   $('applyTemplate').onclick=applyTemplate;$('saveTemplate').onclick=saveTemplate;
+  $('saveDesignTokens').onclick=()=>saveSharedJson('designTokens','/api/design-tokens','design_tokens');
+  $('saveLocalization').onclick=()=>saveSharedJson('localizationCatalog','/api/localization','localization');
   $('nodeId').onchange=e=>{checkpoint();selected.id=e.target.value;render()};
   $('breakpointOverride').onchange=renderInspector;
   $('actionSearch').oninput=e=>renderActions(e.target.value);
@@ -479,6 +508,9 @@ function bindControls(){
     else if(e.key==='Delete'&&document.activeElement?.tagName!=='INPUT'){removeSelected()}
   };
   updateHistoryButtons();
+}
+async function saveSharedJson(elementId,url,bootstrapKey){
+  try{const value=JSON.parse($(elementId).value);const result=await request(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(value)});bootstrap[bootstrapKey]=value;renderInspector();setStatus(result.message)}catch(error){setStatus(error.message,true)}
 }
 async function persist(generate){
   render();setStatus(generate?'Generating…':'Saving…');

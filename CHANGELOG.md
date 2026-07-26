@@ -28,6 +28,8 @@
   load-more actions.
 - Added visual screen lifecycle controls, reusable project templates, a
   component-tree outline, and validated editable responsive ranges.
+- Added centralized design tokens, localization-key bindings, project image
+  selection and preview, plus generated image/button accessibility semantics.
 
 ## 0.3.0 - 2026-07-26
 

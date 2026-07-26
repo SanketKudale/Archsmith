@@ -11,6 +11,7 @@ import '../models/options.dart';
 import '../services/file_system_service.dart';
 import 'action_registry.dart';
 import 'component_registry.dart';
+import 'design_system.dart';
 import 'studio_assets.dart';
 import 'ui_code_generator.dart';
 import 'ui_schema.dart';
@@ -106,8 +107,33 @@ class StudioServer {
         StudioAssets.js,
       );
     }
+    if (request.method == 'GET' && path.startsWith('/project-asset/')) {
+      final relative =
+          Uri.decodeComponent(path.substring('/project-asset/'.length));
+      final assetRoot = p.normalize(p.join(projectRoot, 'assets'));
+      final filePath = p.normalize(p.join(projectRoot, relative));
+      if (!p.isWithin(assetRoot, filePath)) {
+        throw const FormatException('Invalid project asset path.');
+      }
+      final file = File(filePath);
+      if (!file.existsSync()) {
+        return _json(
+          request.response,
+          HttpStatus.notFound,
+          {'error': 'Asset not found'},
+        );
+      }
+      request.response
+        ..statusCode = HttpStatus.ok
+        ..headers.contentType = _assetContentType(filePath);
+      await request.response.addStream(file.openRead());
+      await request.response.close();
+      return;
+    }
     if (request.method == 'GET' && path == '/api/bootstrap') {
       final components = _components();
+      final designTokens = const StudioDesignTokenStore().read(projectRoot);
+      final localization = const StudioLocalizationStore().read(projectRoot);
       return _json(request.response, HttpStatus.ok, {
         'components': components.toJson(),
         'actions': _actions().map((action) => action.toJson()).toList(),
@@ -115,9 +141,39 @@ class StudioServer {
             defaultUiBreakpoints.map((item) => item.toJson()).toList(),
         'screens': _screenNames(),
         'templates': _templateNames(),
+        'design_tokens': designTokens.toJson(),
+        'localization': localization.toJson(),
+        'assets': const StudioAssetRegistry().readAll(projectRoot),
         'project': config.projectName,
         'state_management': config.stateManagement.value,
       });
+    }
+    if (request.method == 'POST' && path == '/api/design-tokens') {
+      final tokens = StudioDesignTokens.fromJson(await _readJsonMap(request));
+      await _fileSystem.apply(
+        projectRoot,
+        [const StudioDesignTokenStore().plan(tokens)],
+        const GenerationOptions(),
+      );
+      return _json(
+        request.response,
+        HttpStatus.ok,
+        {'message': 'Saved shared design tokens'},
+      );
+    }
+    if (request.method == 'POST' && path == '/api/localization') {
+      final catalog =
+          StudioLocalizationCatalog.fromJson(await _readJsonMap(request));
+      await _fileSystem.apply(
+        projectRoot,
+        [const StudioLocalizationStore().plan(catalog)],
+        const GenerationOptions(),
+      );
+      return _json(
+        request.response,
+        HttpStatus.ok,
+        {'message': 'Saved localization catalog'},
+      );
     }
     if (request.method == 'GET' && path.startsWith('/api/screens/')) {
       final name = Uri.decodeComponent(path.substring('/api/screens/'.length));
@@ -160,9 +216,15 @@ class StudioServer {
       final schema = await _readSchema(request);
       final actions = _actions();
       final components = _components();
+      final designTokens = const StudioDesignTokenStore().read(projectRoot);
+      final localization = const StudioLocalizationStore().read(projectRoot);
+      final assets = const StudioAssetRegistry().readAll(projectRoot);
       final issues = UiSchemaValidator(components: components).validate(
         schema,
         actions: actions,
+        designTokens: designTokens,
+        localization: localization,
+        assets: assets,
       );
       if (issues.isNotEmpty) {
         throw FormatException(
@@ -182,6 +244,9 @@ class StudioServer {
           schema: schema,
           actions: actions,
           components: components,
+          designTokens: designTokens,
+          localization: localization,
+          assets: assets,
           includeExtensionFile: !File(wrapperPath).existsSync(),
         ),
         if (schema.route != null && config.router != RouterType.none)
@@ -230,12 +295,16 @@ class StudioServer {
       );
 
   Future<UiScreenSchema> _readSchema(HttpRequest request) async {
+    return UiScreenSchema.fromJson(await _readJsonMap(request));
+  }
+
+  Future<Map<String, Object?>> _readJsonMap(HttpRequest request) async {
     final body = await utf8.decoder.bind(request).join();
     final decoded = jsonDecode(body);
     if (decoded is! Map) {
       throw const FormatException('Request body must contain a JSON object.');
     }
-    return UiScreenSchema.fromJson(Map<String, Object?>.from(decoded));
+    return Map<String, Object?>.from(decoded);
   }
 
   List<String> _screenNames() {
@@ -351,4 +420,14 @@ class StudioServer {
       ..write(jsonEncode(value));
     await response.close();
   }
+
+  ContentType _assetContentType(String path) =>
+      switch (p.extension(path).toLowerCase()) {
+        '.png' => ContentType('image', 'png'),
+        '.jpg' || '.jpeg' => ContentType('image', 'jpeg'),
+        '.gif' => ContentType('image', 'gif'),
+        '.webp' => ContentType('image', 'webp'),
+        '.svg' => ContentType('image', 'svg+xml'),
+        _ => ContentType.binary,
+      };
 }

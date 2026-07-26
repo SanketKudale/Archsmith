@@ -467,4 +467,84 @@ void main() {
     );
     expect(format.exitCode, 0, reason: format.stderr.toString());
   });
+
+  test('generates tokenized localized and accessible asset presentation', () {
+    const schema = UiScreenSchema(
+      name: 'branding',
+      root: UiNode(
+        id: 'page',
+        type: 'appScaffold',
+        properties: {
+          'title': r'$i18n.welcome',
+          'padding': r'$token.spacing.content',
+        },
+        children: [
+          UiNode(
+            id: 'logo',
+            type: 'imageAsset',
+            properties: {
+              'asset': 'assets/logo.png',
+              'width': r'$token.spacing.logo',
+              'semanticLabel': r'$i18n.logoLabel',
+              'fit': 'contain',
+            },
+          ),
+          UiNode(
+            id: 'continue_button',
+            type: 'appButton',
+            properties: {
+              'label': r'$i18n.continueLabel',
+              'semanticLabel': r'$i18n.continueHint',
+              'tooltip': r'$i18n.continueHint',
+            },
+          ),
+        ],
+      ),
+    );
+    const tokens = StudioDesignTokens(
+      spacing: {'content': 16, 'logo': 96},
+    );
+    const localization = StudioLocalizationCatalog(
+      locales: {
+        'en': {
+          'welcome': 'Welcome',
+          'logoLabel': 'Company logo',
+          'continueLabel': 'Continue',
+          'continueHint': 'Continue to the next step',
+        },
+      },
+    );
+
+    final files = const UiCodeGenerator().generate(
+      config: ArchsmithConfig(projectName: 'sample_app'),
+      schema: schema,
+      actions: const [],
+      designTokens: tokens,
+      localization: localization,
+      assets: const ['assets/logo.png'],
+    );
+    final source = files
+        .singleWhere((file) => file.path.endsWith('.archsmith.dart'))
+        .content;
+
+    expect(
+      source,
+      contains("ArchsmithLocalizations.text(context, 'welcome')"),
+    );
+    expect(
+      source,
+      contains('ArchsmithDesignTokens.spacingContent'),
+    );
+    expect(source, contains("Image.asset('assets/logo.png'"));
+    expect(source, contains('excludeFromSemantics: false'));
+    expect(source, contains('Semantics('));
+    expect(source, contains('Tooltip('));
+    expect(
+      files.map((file) => file.path),
+      containsAll([
+        'lib/shared/theme/archsmith_design_tokens.dart',
+        'lib/shared/localization/archsmith_localizations.dart',
+      ]),
+    );
+  });
 }

@@ -7,6 +7,7 @@ import '../../models/generation.dart';
 import '../../models/options.dart';
 import '../../studio/action_registry.dart';
 import '../../studio/component_registry.dart';
+import '../../studio/design_system.dart';
 import '../../studio/ui_code_generator.dart';
 import '../../studio/ui_schema.dart';
 import '../../studio/ui_validator.dart';
@@ -48,9 +49,15 @@ class UiCommand extends ArchsmithCommand {
     final components = StudioComponentRegistry(
       custom: const StudioComponentManifestStore().readAll(root),
     );
+    final designTokens = const StudioDesignTokenStore().read(root);
+    final localization = const StudioLocalizationStore().read(root);
+    final assets = const StudioAssetRegistry().readAll(root);
     final issues = UiSchemaValidator(components: components).validate(
       schema,
       actions: actions,
+      designTokens: designTokens,
+      localization: localization,
+      assets: assets,
     );
     if (issues.isNotEmpty) {
       for (final issue in issues) {
@@ -70,6 +77,9 @@ class UiCommand extends ArchsmithCommand {
         schema: schema,
         actions: actions,
         components: components,
+        designTokens: designTokens,
+        localization: localization,
+        assets: assets,
       ),
       if (schema.route != null && config.router != RouterType.none)
         ...const RouteRegistryGenerator().register(

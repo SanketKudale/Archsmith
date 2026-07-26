@@ -4,6 +4,7 @@ import '../models/options.dart';
 import '../utils/naming_utils.dart';
 import 'action_registry.dart';
 import 'component_registry.dart';
+import 'design_system.dart';
 import 'ui_schema.dart';
 import 'ui_validator.dart';
 
@@ -16,11 +17,17 @@ class UiCodeGenerator {
     required UiScreenSchema schema,
     required List<StudioActionDescriptor> actions,
     StudioComponentRegistry components = const StudioComponentRegistry(),
+    StudioDesignTokens designTokens = const StudioDesignTokens(),
+    StudioLocalizationCatalog localization = const StudioLocalizationCatalog(),
+    Iterable<String> assets = const [],
     bool includeExtensionFile = true,
   }) {
     final issues = UiSchemaValidator(components: components).validate(
       schema,
       actions: actions,
+      designTokens: designTokens,
+      localization: localization,
+      assets: assets,
     );
     if (issues.isNotEmpty) {
       throw FormatException(
@@ -48,6 +55,8 @@ class UiCodeGenerator {
       actions: selectedActions,
       textFields: textFields,
       components: components,
+      designTokens: designTokens,
+      localization: localization,
     );
     final directory = _pageDirectory(config, feature);
     final files = <PlannedFile>[
@@ -62,6 +71,24 @@ class UiCodeGenerator {
         PlannedFile(
           '$directory/${screen.snakeCase}_page.dart',
           renderer.extensionSource(screen.pascalCase),
+        ),
+      );
+    }
+    if (_containsReference(schema.root, r'$token.')) {
+      files.add(
+        PlannedFile(
+          'lib/shared/theme/archsmith_design_tokens.dart',
+          designTokens.dartSource(),
+          isUpdate: true,
+        ),
+      );
+    }
+    if (_containsReference(schema.root, r'$i18n.')) {
+      files.add(
+        PlannedFile(
+          'lib/shared/localization/archsmith_localizations.dart',
+          localization.dartSource(),
+          isUpdate: true,
         ),
       );
     }
@@ -85,6 +112,8 @@ class _FlutterRenderer {
     required this.actions,
     required this.textFields,
     required this.components,
+    required this.designTokens,
+    required this.localization,
   });
 
   final ArchsmithConfig config;
@@ -92,6 +121,8 @@ class _FlutterRenderer {
   final List<StudioActionDescriptor> actions;
   final List<UiNode> textFields;
   final StudioComponentRegistry components;
+  final StudioDesignTokens designTokens;
+  final StudioLocalizationCatalog localization;
 
   String generatedSource(String classPrefix) {
     final imports = _imports();
@@ -234,6 +265,16 @@ $callbackArguments  );
       "import 'package:flutter/material.dart';",
       "import 'package:${config.projectName}/shared/widgets/common_widgets.dart';",
     };
+    if (_containsReference(schema.root, r'$token.')) {
+      values.add(
+        "import 'package:${config.projectName}/shared/theme/archsmith_design_tokens.dart';",
+      );
+    }
+    if (_containsReference(schema.root, r'$i18n.')) {
+      values.add(
+        "import 'package:${config.projectName}/shared/localization/archsmith_localizations.dart';",
+      );
+    }
     if (config.stateManagement == StateManagementType.riverpod) {
       values.add(
         "import 'package:flutter_riverpod/flutter_riverpod.dart';",
@@ -324,7 +365,7 @@ $callbackArguments  );
             : 'Column(children: [${children.join(', ')}])';
     return switch (node.type) {
       'appScaffold' => 'AppScaffold('
-          'title: ${_nullableString(properties['title'])}, '
+          'title: ${_localized(properties['title'], nullable: true)}, '
           'padding: EdgeInsets.all(${_number(properties['padding'], 16)}), '
           'body: $child)',
       'column' => _axisWidget('Column', properties, children, indent),
@@ -339,7 +380,7 @@ $callbackArguments  );
           'padding: EdgeInsets.all(${_number(properties['padding'], 0)}), '
           '${_decoration(properties)}'
           'child: $child)',
-      'text' => 'Text(${_string((properties['text'] ?? 'Text').toString())}, '
+      'text' => 'Text(${_localized(properties['text'] ?? 'Text')}, '
           'textAlign: TextAlign.${properties['textAlign'] ?? 'left'}, '
           'style: TextStyle('
           'fontSize: ${_number(properties['fontSize'], 14)}, '
@@ -348,12 +389,11 @@ $callbackArguments  );
           '))',
       'appTextField' => 'AppTextField('
           'controller: _${_identifier(node.id)}Controller, '
-          'label: ${_nullableString(properties['label'])}, '
-          'hint: ${_nullableString(properties['hint'])}, '
+          'label: ${_localized(properties['label'], nullable: true)}, '
+          'hint: ${_localized(properties['hint'], nullable: true)}, '
           'obscureText: ${properties['obscureText'] == true})',
-      'appButton' => 'AppButton('
-          'label: ${_string((properties['label'] ?? 'Continue').toString())}, '
-          'onPressed: ${properties['enabled'] == false ? 'null' : _callback(node)})',
+      'appButton' => _button(node, properties),
+      'imageAsset' => _imageAsset(properties),
       'appLoadingIndicator' => _loadingWidget(node.action),
       'stateText' => _stateText(node, properties),
       'stateList' => _stateCollection(node, properties, isGrid: false),
@@ -437,6 +477,35 @@ $callbackArguments  );
     return '_run${_pascal(executable.single.actionId)}';
   }
 
+  String _button(UiNode node, Map<String, Object?> properties) {
+    final label = _localized(properties['label'] ?? 'Continue');
+    final callback = properties['enabled'] == false ? 'null' : _callback(node);
+    var widget = 'AppButton(label: $label, onPressed: $callback)';
+    final tooltip = properties['tooltip'];
+    if (tooltip != null && tooltip.toString().isNotEmpty) {
+      widget = 'Tooltip(message: ${_localized(tooltip)}, child: $widget)';
+    }
+    final semantics = properties['semanticLabel'];
+    if (semantics != null && semantics.toString().isNotEmpty) {
+      widget = 'Semantics(label: ${_localized(semantics)}, '
+          'button: true, child: $widget)';
+    }
+    return widget;
+  }
+
+  String _imageAsset(Map<String, Object?> properties) {
+    final asset = properties['asset']?.toString() ?? '';
+    if (asset.isEmpty) return 'const SizedBox.shrink()';
+    final decorative = properties['decorative'] == true;
+    final semantics = properties['semanticLabel'];
+    return 'Image.asset(${_string(asset)}, '
+        '${_dimension('width', properties['width'])}'
+        '${_dimension('height', properties['height'])}'
+        'fit: BoxFit.${properties['fit'] ?? 'contain'}, '
+        'excludeFromSemantics: $decorative, '
+        'semanticLabel: ${decorative ? 'null' : _localized(semantics, nullable: true)})';
+  }
+
   String _loadingWidget(UiActionBinding? binding) {
     if (binding == null) return 'const AppLoadingIndicator()';
     return '${_stateExpression(binding.actionId, 'isLoading')} '
@@ -513,7 +582,7 @@ $callbackArguments  );
         ? presented
         : 'Column(mainAxisSize: MainAxisSize.min, children: ['
             '$presented, '
-            'AppButton(label: ${_string((properties['paginationLabel'] ?? 'Load more').toString())}, '
+            'AppButton(label: ${_localized(properties['paginationLabel'] ?? 'Load more')}, '
             'onPressed: ${_callback(node)})])';
     final builder = 'Builder(builder: (context) { '
         'final state = $state; '
@@ -983,14 +1052,19 @@ $resultHandling
 
   String _colorValue(String name, Object? value) {
     if (value is! String || value.isEmpty) return '';
+    final token = _tokenExpression(value);
+    if (token != null) return '$name: $token, ';
     final hex = value.replaceFirst('#', '');
     final normalized = hex.length == 6 ? 'FF$hex' : hex;
     if (!RegExp(r'^[0-9a-fA-F]{8}$').hasMatch(normalized)) return '';
     return '$name: Color(0x$normalized), ';
   }
 
-  String _dimension(String name, Object? value) =>
-      value is num ? '$name: $value, ' : '';
+  String _dimension(String name, Object? value) {
+    final token = _tokenExpression(value);
+    if (token != null) return '$name: $token, ';
+    return value is num ? '$name: $value, ' : '';
+  }
 
   String _fontWeight(Object? value) => switch (value) {
         'bold' => 'FontWeight.bold',
@@ -999,13 +1073,31 @@ $resultHandling
       };
 
   String _number(Object? value, num fallback) =>
-      value is num ? value.toString() : fallback.toString();
+      _tokenExpression(value) ??
+      (value is num ? value.toString() : fallback.toString());
 
   int _integer(Object? value, int fallback) =>
       value is num && value > 0 ? value.toInt() : fallback;
 
-  String _nullableString(Object? value) =>
-      value == null ? 'null' : _string(value.toString());
+  String _localized(Object? value, {bool nullable = false}) {
+    if (value == null) return nullable ? 'null' : "''";
+    final text = value.toString();
+    if (text.startsWith(r'$i18n.') && text.length > r'$i18n.'.length) {
+      return 'ArchsmithLocalizations.text(context, '
+          '${_string(text.substring(r'$i18n.'.length))})';
+    }
+    return _string(text);
+  }
+
+  String? _tokenExpression(Object? value) {
+    if (value is! String ||
+        !value.startsWith(r'$token.') ||
+        value.length == r'$token.'.length) {
+      return null;
+    }
+    return 'ArchsmithDesignTokens.'
+        '${StudioDesignTokens.identifier(value.substring(r'$token.'.length))}';
+  }
 
   String _string(String value) =>
       "'${value.replaceAll(r'\', r'\\').replaceAll("'", r"\'").replaceAll('\n', r'\n')}'";
@@ -1049,6 +1141,27 @@ List<UiNode> _nodes(UiNode root) => [
       root,
       for (final child in root.children) ..._nodes(child),
     ];
+
+bool _containsReference(UiNode root, String prefix) => _nodes(root).any(
+      (node) =>
+          _valueContainsReference(node.properties, prefix) ||
+          _valueContainsReference(node.responsive, prefix) ||
+          _valueContainsReference(node.action?.arguments, prefix) ||
+          node.actions.any(
+            (binding) => _valueContainsReference(binding.arguments, prefix),
+          ),
+    );
+
+bool _valueContainsReference(Object? value, String prefix) {
+  if (value is String) return value.startsWith(prefix);
+  if (value is Map) {
+    return value.values.any((item) => _valueContainsReference(item, prefix));
+  }
+  if (value is Iterable) {
+    return value.any((item) => _valueContainsReference(item, prefix));
+  }
+  return false;
+}
 
 List<StudioActionDescriptor> _selectedActions(
   UiNode root,
