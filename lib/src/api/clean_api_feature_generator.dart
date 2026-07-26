@@ -658,7 +658,7 @@ class CleanApiFeatureGenerator {
             "final ${operation.camelCase}DataSourceProvider = Provider<${prefix}RemoteDataSource>((ref) => ${prefix}RemoteDataSource(ref.watch(networkClientProvider), context: ref.watch(apiRequestContextProvider), coordinator: ref.watch(apiRequestCoordinatorProvider), cache: ref.watch(apiResponseCacheProvider)));\n",
       StateManagementType.provider => "import 'package:provider/provider.dart';\n"
           "$imports"
-          "final ${operation.camelCase}DataSourceProvider = ProxyProvider4<NetworkClient, ApiRequestContext, ApiRequestCoordinator, ApiResponseCache, ${prefix}RemoteDataSource>(update: (_, client, context, coordinator, cache, __) => ${prefix}RemoteDataSource(client, context: context, coordinator: coordinator, cache: cache));\n",
+          "final ${operation.camelCase}DataSourceProvider = ProxyProvider4<NetworkClient, ApiRequestContext, ApiRequestCoordinator, ApiResponseCache, ${prefix}RemoteDataSource>(update: (_, client, context, coordinator, cache, previous) => ${prefix}RemoteDataSource(client, context: context, coordinator: coordinator, cache: cache));\n",
       StateManagementType.bloc =>
         "import 'package:flutter_bloc/flutter_bloc.dart';\n"
             "$imports"
@@ -691,14 +691,14 @@ class CleanApiFeatureGenerator {
             "final ${operation.camelCase}RepositoryProvider = Provider<${repository}Repository>((ref) => ${repository}RepositoryImpl(ref.watch(${operation.camelCase}DataSourceProvider)));\n",
       StateManagementType.provider => "import 'package:provider/provider.dart';\n"
           "$imports"
-          "final ${operation.camelCase}RepositoryProvider = ProxyProvider<${operation.pascalCase}RemoteDataSource, ${repository}Repository>(update: (_, source, __) => ${repository}RepositoryImpl(source));\n",
+          "final ${operation.camelCase}RepositoryProvider = ProxyProvider<${operation.pascalCase}RemoteDataSource, ${repository}Repository>(update: (_, source, previous) => ${repository}RepositoryImpl(source));\n",
       StateManagementType.bloc =>
         "import 'package:flutter_bloc/flutter_bloc.dart';\n"
             "$imports"
             "final ${operation.camelCase}RepositoryProvider = RepositoryProvider<${repository}Repository>(create: (context) => ${repository}RepositoryImpl(context.read<${operation.pascalCase}RemoteDataSource>()));\n",
       StateManagementType.getx => "import 'package:get/get.dart';\n"
           "$imports"
-          "class ${repository}Binding { static void register() => Get.lazyPut<${repository}Repository>(() => ${repository}RepositoryImpl(Get.find())); }\n",
+          "class ${repository}Binding { static void register() => Get.lazyPut<${repository}Repository>(() => ${repository}RepositoryImpl(Get.find<${operation.pascalCase}RemoteDataSource>())); }\n",
       StateManagementType.none => "$imports"
           "${repository}Repository create${repository}Repository(${operation.pascalCase}RemoteDataSource source) => ${repository}RepositoryImpl(source);\n",
     };
@@ -724,14 +724,14 @@ class CleanApiFeatureGenerator {
             "final ${operation.camelCase}UseCaseProvider = Provider<${prefix}UseCase>((ref) => ${prefix}UseCase(ref.watch(${operation.camelCase}RepositoryProvider)));\n",
       StateManagementType.provider => "import 'package:provider/provider.dart';\n"
           "$imports"
-          "final ${operation.camelCase}UseCaseProvider = ProxyProvider<${repository}Repository, ${prefix}UseCase>(update: (_, repository, __) => ${prefix}UseCase(repository));\n",
+          "final ${operation.camelCase}UseCaseProvider = ProxyProvider<${repository}Repository, ${prefix}UseCase>(update: (_, repository, previous) => ${prefix}UseCase(repository));\n",
       StateManagementType.bloc =>
         "import 'package:flutter_bloc/flutter_bloc.dart';\n"
             "$imports"
             "final ${operation.camelCase}UseCaseProvider = RepositoryProvider<${prefix}UseCase>(create: (context) => ${prefix}UseCase(context.read<${repository}Repository>()));\n",
       StateManagementType.getx => "import 'package:get/get.dart';\n"
           "$imports"
-          "class ${prefix}UseCaseBinding { static void register() => Get.lazyPut<${prefix}UseCase>(() => ${prefix}UseCase(Get.find())); }\n",
+          "class ${prefix}UseCaseBinding { static void register() => Get.lazyPut<${prefix}UseCase>(() => ${prefix}UseCase(Get.find<${repository}Repository>())); }\n",
       StateManagementType.none => "$imports"
           "${prefix}UseCase create${prefix}UseCase(${repository}Repository repository) => ${prefix}UseCase(repository);\n",
     };
@@ -765,7 +765,7 @@ class CleanApiFeatureGenerator {
             "final ${operation.camelCase}Provider = BlocProvider<${prefix}Cubit>(create: (context) => ${prefix}Cubit(context.read<${prefix}UseCase>()));\n",
       StateManagementType.getx => "import 'package:get/get.dart';\n"
           "$imports"
-          "class ${prefix}Binding extends Bindings { @override void dependencies() => Get.lazyPut<${prefix}Controller>(() => ${prefix}Controller(Get.find())); }\n",
+          "class ${prefix}Binding extends Bindings { @override void dependencies() => Get.lazyPut<${prefix}Controller>(() => ${prefix}Controller(Get.find<${prefix}UseCase>())); }\n",
       StateManagementType.none => "$imports"
           "${prefix}Notifier create${prefix}Notifier(${prefix}UseCase useCase) => ${prefix}Notifier(useCase);\n",
     };

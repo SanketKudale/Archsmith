@@ -129,8 +129,8 @@ class GenerationEngine {
           kind == 'page'
               ? _pageClass(config.projectName, name)
               : kind == 'widget'
-              ? _widgetClass(name)
-              : _plainClass(name, classSuffix, kind),
+                  ? _widgetClass(name)
+                  : _plainClass(name, classSuffix, kind),
         ),
       );
       if (withTests) {
@@ -153,37 +153,37 @@ class GenerationEngine {
   ) {
     return switch (architecture) {
       ArchitectureType.cleanFeature => {
-        'page': 'lib/features/$feature/presentation/pages',
-        'controller': 'lib/features/$feature/presentation/controllers',
-        'model': 'lib/features/$feature/data/models',
-        'repository': 'lib/features/$feature/domain/repositories',
-        'service': 'lib/features/$feature/data/datasources',
-        'usecase': 'lib/features/$feature/domain/usecases',
-      },
+          'page': 'lib/features/$feature/presentation/pages',
+          'controller': 'lib/features/$feature/presentation/controllers',
+          'model': 'lib/features/$feature/data/models',
+          'repository': 'lib/features/$feature/domain/repositories',
+          'service': 'lib/features/$feature/data/datasources',
+          'usecase': 'lib/features/$feature/domain/usecases',
+        },
       ArchitectureType.mvvm => {
-        'page': 'lib/features/$feature/views',
-        'controller': 'lib/features/$feature/view_models',
-        'model': 'lib/features/$feature/models',
-        'repository': 'lib/features/$feature/repositories',
-        'service': 'lib/features/$feature/services',
-        'usecase': 'lib/features/$feature/services',
-      },
+          'page': 'lib/features/$feature/views',
+          'controller': 'lib/features/$feature/view_models',
+          'model': 'lib/features/$feature/models',
+          'repository': 'lib/features/$feature/repositories',
+          'service': 'lib/features/$feature/services',
+          'usecase': 'lib/features/$feature/services',
+        },
       ArchitectureType.cleanLayer => {
-        'page': 'lib/presentation/pages',
-        'controller': 'lib/presentation/controllers',
-        'model': 'lib/data/models',
-        'repository': 'lib/domain/repositories',
-        'service': 'lib/data/datasources',
-        'usecase': 'lib/domain/usecases',
-      },
+          'page': 'lib/presentation/pages',
+          'controller': 'lib/presentation/controllers',
+          'model': 'lib/data/models',
+          'repository': 'lib/domain/repositories',
+          'service': 'lib/data/datasources',
+          'usecase': 'lib/domain/usecases',
+        },
       ArchitectureType.simpleFeature => {
-        'page': 'lib/features/$feature/pages',
-        'controller': 'lib/features/$feature/controllers',
-        'model': 'lib/features/$feature/models',
-        'repository': 'lib/features/$feature/services',
-        'service': 'lib/features/$feature/services',
-        'usecase': 'lib/features/$feature/services',
-      },
+          'page': 'lib/features/$feature/pages',
+          'controller': 'lib/features/$feature/controllers',
+          'model': 'lib/features/$feature/models',
+          'repository': 'lib/features/$feature/services',
+          'service': 'lib/features/$feature/services',
+          'usecase': 'lib/features/$feature/services',
+        },
     };
   }
 
@@ -191,12 +191,13 @@ class GenerationEngine {
     final folders = switch (architecture) {
       ArchitectureType.cleanFeature => ['lib/features/.gitkeep'],
       ArchitectureType.cleanLayer => [
-        'lib/data/.gitkeep',
-        'lib/domain/.gitkeep',
-        'lib/presentation/.gitkeep',
-      ],
-      ArchitectureType.mvvm ||
-      ArchitectureType.simpleFeature => ['lib/features/.gitkeep'],
+          'lib/data/.gitkeep',
+          'lib/domain/.gitkeep',
+          'lib/presentation/.gitkeep',
+        ],
+      ArchitectureType.mvvm || ArchitectureType.simpleFeature => [
+          'lib/features/.gitkeep'
+        ],
     };
     return folders.map((path) => PlannedFile(path, '')).toList();
   }
@@ -243,45 +244,44 @@ class GenerationEngine {
   }
 
   String _network(ArchsmithConfig config) => switch (config.network) {
-    NetworkType.dio =>
-      "import 'package:dio/dio.dart';\n\nclass NetworkClient {\n  NetworkClient({Dio? dio}) : dio = dio ?? Dio();\n  final Dio dio;\n}\n",
-    NetworkType.http =>
-      "import 'package:http/http.dart' as http;\n\nclass NetworkClient {\n  NetworkClient({http.Client? client}) : client = client ?? http.Client();\n  final http.Client client;\n}\n",
-    NetworkType.none => '',
-  };
+        NetworkType.dio =>
+          "import 'package:dio/dio.dart';\n\nclass NetworkClient {\n  NetworkClient({Dio? dio}) : dio = dio ?? Dio();\n  final Dio dio;\n}\n",
+        NetworkType.http =>
+          "import 'package:http/http.dart' as http;\n\nclass NetworkClient {\n  NetworkClient({http.Client? client}) : client = client ?? http.Client();\n  final http.Client client;\n}\n",
+        NetworkType.none => '',
+      };
 
   String _router(ArchsmithConfig config) => switch (config.router) {
-    RouterType.goRouter =>
-      "import 'package:flutter/material.dart';\nimport 'package:go_router/go_router.dart';\nimport '../../shared/widgets/app_scaffold.dart';\nimport 'generated_routes.dart';\n\nfinal appRouter = GoRouter(routes: [\n  ...generatedRoutes,\n  GoRoute(path: '/', builder: (context, state) => const AppScaffold(body: Center(child: Text('Home')))),\n]);\n",
-    RouterType.autoRoute =>
-      "import 'package:auto_route/auto_route.dart';\n"
-      "import 'generated_routes.dart';\n"
-      "// archsmith:route-imports:start\n"
-      "// archsmith:route-imports:end\n\n"
-      "part 'app_router.gr.dart';\n\n"
-      "@AutoRouterConfig()\n"
-      "class AppRouter extends RootStackRouter {\n"
-      "  @override\n"
-      "  List<AutoRoute> get routes => [\n"
-      "    // archsmith:routes:start\n"
-      "    // archsmith:routes:end\n"
-      "  ];\n"
-      "}\n\n"
-      "final appRouter = AppRouter();\n",
-    RouterType.navigator =>
-      "abstract final class AppRoutes {\n  static const home = '/';\n}\n",
-    RouterType.none => '',
-  };
+        RouterType.goRouter =>
+          "import 'package:flutter/material.dart';\nimport 'package:go_router/go_router.dart';\nimport '../../shared/widgets/app_scaffold.dart';\nimport 'generated_routes.dart';\n\nfinal appRouter = GoRouter(routes: [\n  ...generatedRoutes,\n  GoRoute(path: '/', builder: (context, state) => const AppScaffold(body: Center(child: Text('Home')))),\n]);\n",
+        RouterType.autoRoute => "import 'package:auto_route/auto_route.dart';\n"
+            "import 'generated_routes.dart';\n"
+            "// archsmith:route-imports:start\n"
+            "// archsmith:route-imports:end\n\n"
+            "part 'app_router.gr.dart';\n\n"
+            "@AutoRouterConfig()\n"
+            "class AppRouter extends RootStackRouter {\n"
+            "  @override\n"
+            "  List<AutoRoute> get routes => [\n"
+            "    // archsmith:routes:start\n"
+            "    // archsmith:routes:end\n"
+            "  ];\n"
+            "}\n\n"
+            "final appRouter = AppRouter();\n",
+        RouterType.navigator =>
+          "abstract final class AppRoutes {\n  static const home = '/';\n}\n",
+        RouterType.none => '',
+      };
 
   String _emptyGeneratedRoutes(RouterType router) => switch (router) {
-    RouterType.goRouter =>
-      "import 'package:go_router/go_router.dart';\n\nabstract final class AppRoutes {}\nfinal generatedRoutes = <RouteBase>[];\n",
-    RouterType.autoRoute =>
-      "import 'package:flutter/material.dart';\n\nabstract final class AppRoutes {}\nextension GeneratedNavigation on BuildContext {}\n",
-    RouterType.navigator =>
-      "import 'package:flutter/material.dart';\n\nabstract final class AppRoutes {}\nfinal generatedRoutes = <String, WidgetBuilder>{};\nextension GeneratedNavigation on BuildContext {}\n",
-    RouterType.none => '',
-  };
+        RouterType.goRouter =>
+          "import 'package:go_router/go_router.dart';\n\nabstract final class AppRoutes {}\nfinal generatedRoutes = <RouteBase>[];\n",
+        RouterType.autoRoute =>
+          "import 'package:flutter/material.dart';\n\nabstract final class AppRoutes {}\nextension GeneratedNavigation on BuildContext {}\n",
+        RouterType.navigator =>
+          "import 'package:flutter/material.dart';\n\nabstract final class AppRoutes {}\nfinal generatedRoutes = <String, WidgetBuilder>{};\nextension GeneratedNavigation on BuildContext {}\n",
+        RouterType.none => '',
+      };
 
   List<PlannedFile> _runtime(ArchsmithConfig config) {
     final checks = [
@@ -412,9 +412,8 @@ class GenerationEngine {
     NameVariants name,
     String suffix,
   ) {
-    final importPath = sourcePath.startsWith('lib/')
-        ? sourcePath.substring(4)
-        : sourcePath;
+    final importPath =
+        sourcePath.startsWith('lib/') ? sourcePath.substring(4) : sourcePath;
     return "import 'package:$projectName/$importPath';\nimport 'package:flutter_test/flutter_test.dart';\n\nvoid main() {\n  test('${name.titleCase} $suffix can be constructed', () {\n    expect(const ${name.pascalCase}$suffix(), isA<${name.pascalCase}$suffix>());\n  });\n}\n";
   }
 
@@ -424,28 +423,28 @@ class GenerationEngine {
   String _profilePolicy(RuntimeProtectionProfile profile) {
     final cases = switch (profile) {
       RuntimeProtectionProfile.standard => {
-        'noInternet': 'blockScreen',
-        'backendUnavailable': 'blockScreen',
-        'screenCapture': 'warn',
-        'screenRecording': 'blurContent',
-      },
+          'noInternet': 'blockScreen',
+          'backendUnavailable': 'blockScreen',
+          'screenCapture': 'warn',
+          'screenRecording': 'blurContent',
+        },
       RuntimeProtectionProfile.financial => {
-        'noInternet': 'blockScreen',
-        'vpn': 'restrict',
-        'proxy': 'warn',
-        'mockLocation': 'terminateSession',
-        'rootedDevice': 'blockScreen',
-        'jailbrokenDevice': 'blockScreen',
-        'appIntegrityFailure': 'terminateSession',
-        'screenRecording': 'blockScreen',
-      },
+          'noInternet': 'blockScreen',
+          'vpn': 'restrict',
+          'proxy': 'warn',
+          'mockLocation': 'terminateSession',
+          'rootedDevice': 'blockScreen',
+          'jailbrokenDevice': 'blockScreen',
+          'appIntegrityFailure': 'terminateSession',
+          'screenRecording': 'blockScreen',
+        },
       RuntimeProtectionProfile.examination => {
-        'screenRecording': 'blockScreen',
-        'screenSharing': 'blockScreen',
-        'screenMirroring': 'blockScreen',
-        'externalDisplay': 'warn',
-        'emulator': 'blockScreen',
-      },
+          'screenRecording': 'blockScreen',
+          'screenSharing': 'blockScreen',
+          'screenMirroring': 'blockScreen',
+          'externalDisplay': 'warn',
+          'emulator': 'blockScreen',
+        },
       RuntimeProtectionProfile.custom => <String, String>{},
     };
     final switchCases = cases.entries
@@ -458,17 +457,17 @@ class GenerationEngine {
   }
 
   String _stateIntegration(StateManagementType state) => switch (state) {
-    StateManagementType.riverpod =>
-      "import 'package:flutter_riverpod/flutter_riverpod.dart';\nimport '../runtime_protection_controller.dart';\nimport '../runtime_protection_service.dart';\nimport '../security_decision.dart';\nfinal runtimeProtectionServiceProvider = Provider<RuntimeProtectionService>((ref) => throw UnimplementedError('Inject a RuntimeProtectionService'));\nfinal runtimeProtectionControllerProvider = Provider<RuntimeProtectionController>((ref) => throw UnimplementedError('Inject a RuntimeProtectionPolicy'));\nfinal threatEventProvider = StreamProvider((ref) => ref.watch(runtimeProtectionServiceProvider).threatEvents);\nfinal securityDecisionProvider = Provider<SecurityDecision?>((ref) => null);\n",
-    StateManagementType.bloc =>
-      "import 'package:flutter_bloc/flutter_bloc.dart';\nimport '../security_decision.dart';\nsealed class RuntimeProtectionEvent { const RuntimeProtectionEvent(); }\nfinal class RuntimeProtectionStarted extends RuntimeProtectionEvent { const RuntimeProtectionStarted(); }\nclass RuntimeProtectionState { const RuntimeProtectionState({this.decision}); final SecurityDecision? decision; }\nclass RuntimeProtectionBloc extends Bloc<RuntimeProtectionEvent, RuntimeProtectionState> { RuntimeProtectionBloc() : super(const RuntimeProtectionState()) { on<RuntimeProtectionStarted>((event, emit) {}); } }\n",
-    StateManagementType.provider =>
-      "import 'package:flutter/foundation.dart';\nimport '../security_decision.dart';\nclass RuntimeProtectionNotifier extends ChangeNotifier { SecurityDecision? get decision => _decision; SecurityDecision? _decision; void update(SecurityDecision value) { _decision = value; notifyListeners(); } }\n",
-    StateManagementType.getx =>
-      "import 'package:get/get.dart';\nimport '../security_decision.dart';\nclass RuntimeProtectionController extends GetxController { final decision = Rxn<SecurityDecision>(); void updateDecision(SecurityDecision value) => decision.value = value; }\n",
-    StateManagementType.none =>
-      "import 'package:flutter/foundation.dart';\nimport '../security_decision.dart';\nfinal securityDecision = ValueNotifier<SecurityDecision?>(null);\n",
-  };
+        StateManagementType.riverpod =>
+          "import 'package:flutter_riverpod/flutter_riverpod.dart';\nimport '../runtime_protection_controller.dart';\nimport '../runtime_protection_service.dart';\nimport '../security_decision.dart';\nfinal runtimeProtectionServiceProvider = Provider<RuntimeProtectionService>((ref) => throw UnimplementedError('Inject a RuntimeProtectionService'));\nfinal runtimeProtectionControllerProvider = Provider<RuntimeProtectionController>((ref) => throw UnimplementedError('Inject a RuntimeProtectionPolicy'));\nfinal threatEventProvider = StreamProvider((ref) => ref.watch(runtimeProtectionServiceProvider).threatEvents);\nfinal securityDecisionProvider = Provider<SecurityDecision?>((ref) => null);\n",
+        StateManagementType.bloc =>
+          "import 'package:flutter_bloc/flutter_bloc.dart';\nimport '../security_decision.dart';\nsealed class RuntimeProtectionEvent { const RuntimeProtectionEvent(); }\nfinal class RuntimeProtectionStarted extends RuntimeProtectionEvent { const RuntimeProtectionStarted(); }\nclass RuntimeProtectionState { const RuntimeProtectionState({this.decision}); final SecurityDecision? decision; }\nclass RuntimeProtectionBloc extends Bloc<RuntimeProtectionEvent, RuntimeProtectionState> { RuntimeProtectionBloc() : super(const RuntimeProtectionState()) { on<RuntimeProtectionStarted>((event, emit) {}); } }\n",
+        StateManagementType.provider =>
+          "import 'package:flutter/foundation.dart';\nimport '../security_decision.dart';\nclass RuntimeProtectionNotifier extends ChangeNotifier { SecurityDecision? get decision => _decision; SecurityDecision? _decision; void update(SecurityDecision value) { _decision = value; notifyListeners(); } }\n",
+        StateManagementType.getx =>
+          "import 'package:get/get.dart';\nimport '../security_decision.dart';\nclass RuntimeProtectionController extends GetxController { final decision = Rxn<SecurityDecision>(); void updateDecision(SecurityDecision value) => decision.value = value; }\n",
+        StateManagementType.none =>
+          "import 'package:flutter/foundation.dart';\nimport '../security_decision.dart';\nfinal securityDecision = ValueNotifier<SecurityDecision?>(null);\n",
+      };
 }
 
 const _bootstrap =
@@ -496,8 +495,7 @@ const _apiCommonConfigTemplate = '''
   }
 }
 ''';
-const _componentDefaults =
-    "import 'package:flutter/material.dart';\n\n"
+const _componentDefaults = "import 'package:flutter/material.dart';\n\n"
     "/// Customize shared component defaults here to update the entire app.\n"
     "abstract final class AppComponentDefaults {\n"
     "  static const contentPadding = EdgeInsets.all(16);\n"
@@ -506,8 +504,7 @@ const _componentDefaults =
     "  static const loadingIndicatorSize = 24.0;\n"
     "  static const loadingIndicatorStrokeWidth = 3.0;\n"
     "}\n";
-const _appScaffold =
-    "import 'package:flutter/material.dart';\n"
+const _appScaffold = "import 'package:flutter/material.dart';\n"
     "import 'app_component_defaults.dart';\n\n"
     "/// Shared page shell used by generated screens.\n"
     "class AppScaffold extends StatelessWidget {\n"
@@ -531,8 +528,7 @@ const _appScaffold =
     "    floatingActionButton: floatingActionButton,\n"
     "  );\n"
     "}\n";
-const _appButton =
-    "import 'package:flutter/material.dart';\n"
+const _appButton = "import 'package:flutter/material.dart';\n"
     "import 'app_component_defaults.dart';\n\n"
     "/// Shared primary button. Change this widget once to update every usage.\n"
     "class AppButton extends StatelessWidget {\n"
@@ -553,8 +549,7 @@ const _appButton =
     "    ),\n"
     "  );\n"
     "}\n";
-const _appTextField =
-    "import 'package:flutter/material.dart';\n"
+const _appTextField = "import 'package:flutter/material.dart';\n"
     "import 'app_component_defaults.dart';\n\n"
     "/// Shared text field with centrally controlled decoration.\n"
     "class AppTextField extends StatelessWidget {\n"
@@ -585,8 +580,7 @@ const _appTextField =
     "    ),\n"
     "  );\n"
     "}\n";
-const _appLoadingIndicator =
-    "import 'package:flutter/material.dart';\n"
+const _appLoadingIndicator = "import 'package:flutter/material.dart';\n"
     "import 'app_component_defaults.dart';\n\n"
     "/// Shared loading indicator with centrally controlled dimensions.\n"
     "class AppLoadingIndicator extends StatelessWidget {\n"
@@ -599,8 +593,7 @@ const _appLoadingIndicator =
     "    ),\n"
     "  );\n"
     "}\n";
-const _commonWidgets =
-    "export 'app_button.dart';\n"
+const _commonWidgets = "export 'app_button.dart';\n"
     "export 'app_component_defaults.dart';\n"
     "export 'app_loading_indicator.dart';\n"
     "export 'app_scaffold.dart';\n"

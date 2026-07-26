@@ -146,6 +146,7 @@ class StudioServer {
         'assets': const StudioAssetRegistry().readAll(projectRoot),
         'project': config.projectName,
         'state_management': config.stateManagement.value,
+        'ui_schema_version': archsmithUiSchemaVersion,
       });
     }
     if (request.method == 'POST' && path == '/api/design-tokens') {

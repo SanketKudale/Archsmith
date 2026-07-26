@@ -13,6 +13,7 @@ import 'commands/create_command.dart';
 import 'commands/doctor_command.dart';
 import 'commands/generate_command.dart';
 import 'commands/init_command.dart';
+import 'commands/release_check_command.dart';
 import 'commands/studio_command.dart';
 import 'commands/ui_command.dart';
 
@@ -41,6 +42,7 @@ class ArchsmithRunner {
       ..addCommand(UiCommand(this.context))
       ..addCommand(StudioCommand(this.context))
       ..addCommand(DoctorCommand(this.context));
+    _runner.addCommand(ReleaseCheckCommand(this.context));
   }
 
   final CommandContext context;

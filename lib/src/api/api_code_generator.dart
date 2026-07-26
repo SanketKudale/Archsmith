@@ -34,22 +34,21 @@ class ApiCodeGenerator {
 
   /// Generates only the common configuration, request context, and result API.
   List<PlannedFile> supportFiles(ApiContract contract) => [
-    PlannedFile(
-      'lib/core/network/generated/api_config.dart',
-      _config(contract),
-    ),
-    const PlannedFile(
-      'lib/core/network/generated/api_request_context.dart',
-      _requestContext,
-    ),
-    const PlannedFile(
-      'lib/core/network/generated/api_result.dart',
-      _apiResult,
-    ),
-  ];
+        PlannedFile(
+          'lib/core/network/generated/api_config.dart',
+          _config(contract),
+        ),
+        const PlannedFile(
+          'lib/core/network/generated/api_request_context.dart',
+          _requestContext,
+        ),
+        const PlannedFile(
+          'lib/core/network/generated/api_result.dart',
+          _apiResult,
+        ),
+      ];
 
-  String _config(ApiContract contract) =>
-      "abstract final class ApiConfig {\n"
+  String _config(ApiContract contract) => "abstract final class ApiConfig {\n"
       "  static const baseUrl = '${_escape(contract.baseUrl)}';\n"
       "  static const requestTimeout = Duration(seconds: ${contract.timeoutSeconds});\n"
       "  static const headers = <String, String>{${_mapEntries(contract.headers)}};\n"
@@ -115,9 +114,9 @@ class ApiCodeGenerator {
     final imports = config.network == NetworkType.dio
         ? "import 'package:dio/dio.dart';\n"
         : "import 'dart:async';\n"
-              "import 'dart:convert';\n"
-              "import 'dart:io';\n\n"
-              "import 'package:http/http.dart' as http;\n";
+            "import 'dart:convert';\n"
+            "import 'dart:io';\n\n"
+            "import 'package:http/http.dart' as http;\n";
     final methods = contract.endpoints
         .map(
           (endpoint) => config.network == NetworkType.dio
@@ -127,24 +126,24 @@ class ApiCodeGenerator {
         .join('\n');
     final helper = config.network == NetworkType.http
         ? "  Map<String, String> _stringQuery(Map<String, Object?> values) => {\n"
-              "    for (final entry in values.entries)\n"
-              "      if (entry.value != null)\n"
-              "        entry.key: entry.value is List\n"
-              "            ? (entry.value as List).join(',')\n"
-              "            : entry.value.toString(),\n"
-              "  };\n\n"
+            "    for (final entry in values.entries)\n"
+            "      if (entry.value != null)\n"
+            "        entry.key: entry.value is List\n"
+            "            ? (entry.value as List).join(',')\n"
+            "            : entry.value.toString(),\n"
+            "  };\n\n"
         : '';
     final constructor = config.network == NetworkType.dio
         ? "  GeneratedApiClient(\n"
-              "    this.client, {\n"
-              "    this.context = const ApiRequestContext(),\n"
-              "  }) {\n"
-              "    client.dio.options.connectTimeout ??= ApiConfig.requestTimeout;\n"
-              "  }\n\n"
+            "    this.client, {\n"
+            "    this.context = const ApiRequestContext(),\n"
+            "  }) {\n"
+            "    client.dio.options.connectTimeout ??= ApiConfig.requestTimeout;\n"
+            "  }\n\n"
         : "  const GeneratedApiClient(\n"
-              "    this.client, {\n"
-              "    this.context = const ApiRequestContext(),\n"
-              "  });\n\n";
+            "    this.client, {\n"
+            "    this.context = const ApiRequestContext(),\n"
+            "  });\n\n";
     return "$imports"
         "import '../network_client.dart';\n"
         "import 'api_config.dart';\n"
@@ -164,17 +163,16 @@ class ApiCodeGenerator {
     final response = names(endpoint.response.name).pascalCase;
     final signature = _signature(endpoint);
     final path = _resolvedPath(endpoint);
-    final sendsBody =
-        endpoint.request != null ||
+    final sendsBody = endpoint.request != null ||
         (contract.bodyParameters.isNotEmpty && endpoint.method != 'GET');
     final requestBody = endpoint.request == null ? '' : '...payload.toJson(),';
     final body = !sendsBody
         ? ''
         : "\n        data: <String, Object?>{"
-              "...ApiConfig.bodyParameters,"
-              "...context.bodyParameters,"
-              "$requestBody"
-              "...overrides.bodyParameters},";
+            "...ApiConfig.bodyParameters,"
+            "...context.bodyParameters,"
+            "$requestBody"
+            "...overrides.bodyParameters},";
     return "  Future<ApiResult<$response>> ${names(endpoint.name).camelCase}({\n"
         "$signature"
         "    ApiRequestContext overrides = const ApiRequestContext(),\n"
@@ -234,17 +232,16 @@ class ApiCodeGenerator {
     final responseType = names(endpoint.response.name).pascalCase;
     final signature = _signature(endpoint);
     final path = _resolvedPath(endpoint);
-    final sendsBody =
-        endpoint.request != null ||
+    final sendsBody = endpoint.request != null ||
         (contract.bodyParameters.isNotEmpty && endpoint.method != 'GET');
     final requestBody = endpoint.request == null ? '' : '...payload.toJson(),';
     final body = !sendsBody
         ? ''
         : "\n      request.body = jsonEncode(<String, Object?>{"
-              "...ApiConfig.bodyParameters,"
-              "...context.bodyParameters,"
-              "$requestBody"
-              "...overrides.bodyParameters});";
+            "...ApiConfig.bodyParameters,"
+            "...context.bodyParameters,"
+            "$requestBody"
+            "...overrides.bodyParameters});";
     return "  Future<ApiResult<$responseType>> ${names(endpoint.name).camelCase}({\n"
         "$signature"
         "    ApiRequestContext overrides = const ApiRequestContext(),\n"
@@ -315,10 +312,10 @@ class ApiCodeGenerator {
   }
 
   String _parameterMap(List<ApiField> fields) => fields.map((field) {
-    final name = names(field.name).camelCase;
-    return "${field.required ? '' : 'if ($name != null) '}"
-        "'${_escape(field.name)}': $name,";
-  }).join();
+        final name = names(field.name).camelCase;
+        return "${field.required ? '' : 'if ($name != null) '}"
+            "'${_escape(field.name)}': $name,";
+      }).join();
 
   String _dartType(ApiField field) {
     final normalized = _type(field.type);
@@ -383,17 +380,17 @@ class ApiCodeGenerator {
       type.toLowerCase() == 'datetime' || type.toLowerCase() == 'date_time';
 
   bool _isScalar(String type) => const {
-    'string',
-    'int',
-    'integer',
-    'double',
-    'num',
-    'number',
-    'bool',
-    'boolean',
-    'dynamic',
-    'object',
-  }.contains(type.toLowerCase());
+        'string',
+        'int',
+        'integer',
+        'double',
+        'num',
+        'number',
+        'bool',
+        'boolean',
+        'dynamic',
+        'object',
+      }.contains(type.toLowerCase());
 
   void _validateTypes(ApiContract contract) {
     final known = contract.models
@@ -445,8 +442,7 @@ class ApiCodeGenerator {
       .replaceAll(r'$', r'\$');
 }
 
-const _requestContext =
-    "class ApiRequestContext {\n"
+const _requestContext = "class ApiRequestContext {\n"
     "  const ApiRequestContext({\n"
     "    this.headers = const {},\n"
     "    this.queryParameters = const {},\n"
@@ -457,8 +453,7 @@ const _requestContext =
     "  final Map<String, Object?> bodyParameters;\n"
     "}\n";
 
-const _apiResult =
-    "import 'api_config.dart';\n\n"
+const _apiResult = "import 'api_config.dart';\n\n"
     "enum ApiDataOrigin { network, cache, optimistic }\n\n"
     "sealed class ApiResult<T> {\n"
     "  const ApiResult();\n"
@@ -627,8 +622,7 @@ const _apiResult =
     "  };\n"
     "}\n";
 
-const _barrel =
-    "export 'api_client.dart';\n"
+const _barrel = "export 'api_client.dart';\n"
     "export 'api_config.dart';\n"
     "export 'api_models.dart';\n"
     "export 'api_request_context.dart';\n"

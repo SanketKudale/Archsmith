@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main, studio]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dart:
+    name: Dart ${{ matrix.sdk }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk: ['3.0.6', stable]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: ${{ matrix.sdk }}
+      - run: dart pub get
+      - run: dart format --output=none --set-exit-if-changed bin lib test tool
+      - run: dart analyze
+      - run: dart test
+      - run: dart pub publish --dry-run
+
+  generated-app:
+    name: Flutter ${{ matrix.flutter }} - ${{ matrix.state }} - ${{ matrix.network }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flutter: '3.10.6'
+            state: riverpod
+            network: dio
+          - flutter: '3.10.6'
+            state: none
+            network: http
+          - flutter: stable
+            state: provider
+            network: dio
+          - flutter: stable
+            state: bloc
+            network: http
+          - flutter: stable
+            state: getx
+            network: dio
+    steps:
+      - uses: actions/checkout@v6
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ matrix.flutter }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: dart run tool/verify_generated_apps.dart --state ${{ matrix.state }} --network ${{ matrix.network }}
+        env:
+          ARCHSMITH_FLUTTER_BIN: flutter

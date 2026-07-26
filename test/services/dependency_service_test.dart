@@ -12,7 +12,7 @@ void main() {
     expect(
       dependencies,
       containsAll([
-        'flutter_riverpod',
+        'flutter_riverpod:^2.4.10',
         'go_router',
         'dio',
         'flutter_secure_storage',
@@ -26,6 +26,9 @@ void main() {
       projectName: 'example_app',
       stateManagement: StateManagementType.getx,
     );
-    expect(const DependencyManifest().forConfig(config), contains('get'));
+    expect(
+      const DependencyManifest().forConfig(config),
+      contains('get:^4.6.6'),
+    );
   });
 }

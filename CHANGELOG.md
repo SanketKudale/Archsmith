@@ -33,6 +33,12 @@
 - Added typed route arguments and request bindings, cache-origin/offline state,
   mutation cache invalidation, cancellable requests, optimistic rollback hooks,
   offline banners, and reactive framework-only state presentation.
+- Added UI schema v1-to-v2 migration with automatic backups and a dedicated
+  `archsmith ui migrate` command.
+- Added browser-driven Studio persistence coverage and real generated Flutter
+  application analysis across every supported state-management strategy.
+- Added pinned compatible state-management dependency majors, Dart 3.0 and
+  Flutter 3.10 CI coverage, and a non-publishing `archsmith release-check`.
 
 ## 0.3.0 - 2026-07-26
 

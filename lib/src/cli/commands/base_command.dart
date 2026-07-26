@@ -27,15 +27,15 @@ abstract class ArchsmithCommand extends Command<int> {
   }
 
   GenerationOptions get options => GenerationOptions(
-    dryRun: argResults!['dry-run'] as bool,
-    force: argResults!['force'] as bool,
-    skipExisting: argResults!['skip-existing'] as bool,
-    withTests: argResults!['tests'] as bool,
-  );
+        dryRun: argResults!['dry-run'] as bool,
+        force: argResults!['force'] as bool,
+        skipExisting: argResults!['skip-existing'] as bool,
+        withTests: argResults!['tests'] as bool,
+      );
 
   ArchsmithConfig readConfig([String? root]) => context.configReader.read(
-    p.join(root ?? Directory.current.path, 'archsmith.yaml'),
-  );
+        p.join(root ?? Directory.current.path, 'archsmith.yaml'),
+      );
 
   int printResult(GenerationResult result) {
     for (final entry in result.entries) {

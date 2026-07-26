@@ -24,8 +24,7 @@ class InitCommand extends ArchsmithCommand {
       stderr.writeln('Current directory is not a Flutter project.');
       return 2;
     }
-    final projectName =
-        RegExp(
+    final projectName = RegExp(
           r'^name:\s*([^\s]+)',
           multiLine: true,
         ).firstMatch(pubspec.readAsStringSync())?.group(1) ??

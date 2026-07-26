@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 /// Current on-disk format understood by Archsmith Studio.
-const archsmithUiSchemaVersion = 1;
+const archsmithUiSchemaVersion = 2;
 
 /// A visual screen definition used to generate responsive Flutter code.
 class UiScreenSchema {
@@ -18,12 +18,13 @@ class UiScreenSchema {
 
   factory UiScreenSchema.fromJson(Map<String, Object?> json) {
     final version = json['version'] ?? archsmithUiSchemaVersion;
-    if (version is! int || version != archsmithUiSchemaVersion) {
+    if (version is! int || version < 1 || version > archsmithUiSchemaVersion) {
       throw FormatException(
         'Unsupported UI schema version: $version. '
         'Expected $archsmithUiSchemaVersion.',
       );
     }
+    if (version == 1) json = _migrateVersion1(json);
     final name = json['name'];
     if (name is! String || name.trim().isEmpty) {
       throw const FormatException('UI screen name must be a non-empty string.');
@@ -43,7 +44,7 @@ class UiScreenSchema {
             .map(UiBreakpoint.fromJson)
             .toList(growable: false);
     return UiScreenSchema(
-      version: version,
+      version: archsmithUiSchemaVersion,
       name: name.trim(),
       route: route as String?,
       feature: json['feature']?.toString(),
@@ -308,6 +309,50 @@ class UiSchemaStore {
     const encoder = JsonEncoder.withIndent('  ');
     await file.writeAsString('${encoder.convert(schema.toJson())}\n');
   }
+
+  Future<UiSchemaMigrationResult> migrate(String path) async {
+    final file = File(path);
+    if (!file.existsSync()) {
+      throw FileSystemException('UI schema was not found', path);
+    }
+    final decoded = jsonDecode(file.readAsStringSync());
+    if (decoded is! Map) {
+      throw const FormatException('UI schema must contain a JSON object.');
+    }
+    final json = Map<String, Object?>.from(decoded);
+    final fromVersion = json['version'] as int? ?? 1;
+    if (fromVersion == archsmithUiSchemaVersion) {
+      return UiSchemaMigrationResult(
+        fromVersion: fromVersion,
+        toVersion: fromVersion,
+        changed: false,
+      );
+    }
+    final schema = UiScreenSchema.fromJson(json);
+    final backupPath = '$path.v$fromVersion.backup';
+    await file.copy(backupPath);
+    await write(path, schema);
+    return UiSchemaMigrationResult(
+      fromVersion: fromVersion,
+      toVersion: schema.version,
+      changed: true,
+      backupPath: backupPath,
+    );
+  }
+}
+
+class UiSchemaMigrationResult {
+  const UiSchemaMigrationResult({
+    required this.fromVersion,
+    required this.toVersion,
+    required this.changed,
+    this.backupPath,
+  });
+
+  final int fromVersion;
+  final int toVersion;
+  final bool changed;
+  final String? backupPath;
 }
 
 const defaultUiBreakpoints = [
@@ -337,3 +382,9 @@ num? _number(Object? value, String location) {
   if (value is! num) throw FormatException('$location must be a number.');
   return value;
 }
+
+Map<String, Object?> _migrateVersion1(Map<String, Object?> source) => {
+      ...source,
+      'version': archsmithUiSchemaVersion,
+      if (source['route_arguments'] == null) 'route_arguments': const [],
+    };

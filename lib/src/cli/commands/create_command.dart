@@ -78,13 +78,16 @@ class CreateCommand extends ArchsmithCommand {
       return printResult(result);
     }
     stdout.writeln('Creating Flutter project...');
-    if (!await runTool('fvm', [
-      'flutter',
-      'create',
-      '--project-name',
-      projectName,
-      target,
-    ], Directory.current.path)) {
+    if (!await runTool(
+        'fvm',
+        [
+          'flutter',
+          'create',
+          '--project-name',
+          projectName,
+          target,
+        ],
+        Directory.current.path)) {
       return 1;
     }
     final result = await context.files.apply(
@@ -172,11 +175,11 @@ class CreateCommand extends ArchsmithCommand {
         : argResults!['theme'] as bool;
     final secureStorage =
         interactive && !argResults!.wasParsed('secure-storage')
-        ? await context.prompts.askConfirmation(
-            'Enable secure storage?',
-            defaultValue: false,
-          )
-        : argResults!['secure-storage'] as bool;
+            ? await context.prompts.askConfirmation(
+                'Enable secure storage?',
+                defaultValue: false,
+              )
+            : argResults!['secure-storage'] as bool;
     var runtimeValue = argResults!['runtime-protection'] as String?;
     if (interactive &&
         runtimeValue == null &&

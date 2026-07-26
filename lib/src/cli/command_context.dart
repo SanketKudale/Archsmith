@@ -12,11 +12,11 @@ class CommandContext {
     ProcessService? processes,
     GenerationEngine? generator,
     ConfigReader? configReader,
-  }) : prompts = prompts ?? const TerminalPromptService(),
-       files = files ?? const LocalFileSystemService(),
-       processes = processes ?? const LocalProcessService(),
-       generator = generator ?? const GenerationEngine(),
-       configReader = configReader ?? const ConfigReader();
+  })  : prompts = prompts ?? const TerminalPromptService(),
+        files = files ?? const LocalFileSystemService(),
+        processes = processes ?? const LocalProcessService(),
+        generator = generator ?? const GenerationEngine(),
+        configReader = configReader ?? const ConfigReader();
 
   final PromptService prompts;
   final FileSystemService files;

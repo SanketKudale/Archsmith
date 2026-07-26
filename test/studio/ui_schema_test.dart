@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:archsmith/archsmith.dart';
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
@@ -294,5 +298,31 @@ void main() {
 
     expect(restored.routeArguments.first.name, 'accountId');
     expect(restored.routeArguments.last.required, isFalse);
+  });
+
+  test('migrates version 1 schemas with a recoverable backup', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'archsmith_ui_migration_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File(p.join(directory.path, 'screen.json'));
+    await file.writeAsString(
+      jsonEncode({
+        'version': 1,
+        'name': 'legacy',
+        'root': {'id': 'root', 'type': 'column'},
+      }),
+    );
+
+    final result = await const UiSchemaStore().migrate(file.path);
+
+    expect(result.changed, isTrue);
+    expect(result.fromVersion, 1);
+    expect(result.toVersion, archsmithUiSchemaVersion);
+    expect(File(result.backupPath!).existsSync(), isTrue);
+    expect(
+      (jsonDecode(file.readAsStringSync()) as Map<String, dynamic>)['version'],
+      archsmithUiSchemaVersion,
+    );
   });
 }

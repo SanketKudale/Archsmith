@@ -133,16 +133,16 @@ class _FlutterRenderer {
     final callbackParameters = config.stateManagement !=
             StateManagementType.none
         ? ''
-        : '${invokedActions.map((action) => '    required this.${_callbackName(action)},').join('\n')}\n';
+        : '${invokedActions.map((action) => '    this.${_callbackName(action)},').join('\n')}\n';
     final stateParameters = config.stateManagement != StateManagementType.none
         ? ''
-        : '${actions.map((action) => '    required this.${_stateCallbackName(action)},').join('\n')}\n';
+        : '${actions.map((action) => '    this.${_stateCallbackName(action)},').join('\n')}\n';
     final callbackFields = config.stateManagement != StateManagementType.none
         ? ''
-        : '${invokedActions.map((action) => '  final ${_pascal(action.id)}Action ${_callbackName(action)};').join('\n')}\n';
+        : '${invokedActions.map((action) => '  final ${_pascal(action.id)}Action? ${_callbackName(action)};').join('\n')}\n';
     final stateFields = config.stateManagement != StateManagementType.none
         ? ''
-        : '${actions.map((action) => '  final ValueListenable<${_stateType(action)}> ${_stateCallbackName(action)};').join('\n')}\n';
+        : '${actions.map((action) => '  final ValueListenable<${_stateType(action)}>? ${_stateCallbackName(action)};').join('\n')}\n';
     final routeParameters = schema.routeArguments
         .map(
           (argument) =>
@@ -164,24 +164,40 @@ class _FlutterRenderer {
       StateManagementType.riverpod => 'ConsumerState<${classPrefix}PageView>',
       _ => 'State<${classPrefix}PageView>',
     };
+    final stateReturnType = switch (config.stateManagement) {
+      StateManagementType.riverpod => 'ConsumerState<${classPrefix}PageView>',
+      _ => 'State<${classPrefix}PageView>',
+    };
     final controllerFields = textFields
         .map(
           (node) =>
               '  final _${_identifier(node.id)}Controller = TextEditingController();',
         )
         .join('\n');
+    final fallbackStateFields =
+        config.stateManagement != StateManagementType.none
+            ? ''
+            : actions
+                .map(
+                  (action) =>
+                      '  final _${_stateCallbackName(action)}Fallback = '
+                      'ValueNotifier<${_stateType(action)}>('
+                      'const ${_stateType(action)}());',
+                )
+                .join('\n');
     final flowFields = _flowNodes()
         .map(
           (node) => '  int _${_identifier(node.id)}FlowGeneration = 0;',
         )
         .join('\n');
-    final dispose = textFields.isEmpty
+    final dispose = textFields.isEmpty && fallbackStateFields.isEmpty
         ? ''
         : '''
 
   @override
   void dispose() {
 ${textFields.map((node) => '    _${_identifier(node.id)}Controller.dispose();').join('\n')}
+${config.stateManagement == StateManagementType.none ? actions.map((action) => '    _${_stateCallbackName(action)}Fallback.dispose();').join('\n') : ''}
     super.dispose();
   }''';
     final breakpointMethods = schema.breakpoints
@@ -227,11 +243,12 @@ $callbackParameters$stateParameters$routeParameters
 $callbackFields$stateFields$routeFields
 
   @override
-  State<${classPrefix}PageView> createState() => _${classPrefix}PageViewState();
+  $stateReturnType createState() => _${classPrefix}PageViewState();
 }
 
 class _${classPrefix}PageViewState extends $stateBase {
 $controllerFields
+$fallbackStateFields
 $flowFields$dispose
 
   @override
@@ -251,16 +268,16 @@ $actionMethods$flowMethods$validationHelper$actionMessageHelper}
     final callbackParameters = config.stateManagement !=
             StateManagementType.none
         ? ''
-        : '${invokedActions.map((action) => '    required this.${_callbackName(action)},').join('\n')}\n';
+        : '${invokedActions.map((action) => '    this.${_callbackName(action)},').join('\n')}\n';
     final stateParameters = config.stateManagement != StateManagementType.none
         ? ''
-        : '${actions.map((action) => '    required this.${_stateCallbackName(action)},').join('\n')}\n';
+        : '${actions.map((action) => '    this.${_stateCallbackName(action)},').join('\n')}\n';
     final callbackFields = config.stateManagement != StateManagementType.none
         ? ''
-        : '${invokedActions.map((action) => '  final ${_pascal(action.id)}Action ${_callbackName(action)};').join('\n')}\n';
+        : '${invokedActions.map((action) => '  final ${_pascal(action.id)}Action? ${_callbackName(action)};').join('\n')}\n';
     final stateFields = config.stateManagement != StateManagementType.none
         ? ''
-        : '${actions.map((action) => '  final ValueListenable<${_stateType(action)}> ${_stateCallbackName(action)};').join('\n')}\n';
+        : '${actions.map((action) => '  final ValueListenable<${_stateType(action)}>? ${_stateCallbackName(action)};').join('\n')}\n';
     final callbackArguments = config.stateManagement != StateManagementType.none
         ? ''
         : '${invokedActions.map((action) => '    ${_callbackName(action)}: ${_callbackName(action)},').join('\n')}\n';
@@ -282,10 +299,13 @@ $actionMethods$flowMethods$validationHelper$actionMessageHelper}
     final routeArguments = schema.routeArguments
         .map((argument) => '    ${argument.name}: ${argument.name},')
         .join('\n');
-    final constant =
-        config.stateManagement == StateManagementType.none ? '' : 'const ';
+    final frameworkImports = config.stateManagement != StateManagementType.none
+        ? ''
+        : "import 'package:flutter/foundation.dart';\n"
+            '${actions.map((action) => "import 'package:${config.projectName}/features/${action.feature}/presentation/states/${names(action.operation).snakeCase}_state.dart';").join('\n')}\n';
     return '''
 import 'package:flutter/material.dart';
+$frameworkImports
 
 import '${names(schema.name).snakeCase}_page.archsmith.dart';
 
@@ -298,7 +318,7 @@ $callbackParameters$stateParameters$routeParameters
 $callbackFields$stateFields$routeFields
 
   @override
-  Widget build(BuildContext context) => $constant${classPrefix}PageView(
+  Widget build(BuildContext context) => ${classPrefix}PageView(
 $callbackArguments$stateArguments$routeArguments  );
 }
 ''';
@@ -309,6 +329,10 @@ $callbackArguments$stateArguments$routeArguments  );
       "import 'package:flutter/material.dart';",
       "import 'package:${config.projectName}/shared/widgets/common_widgets.dart';",
     };
+    if (config.stateManagement == StateManagementType.none &&
+        actions.isNotEmpty) {
+      values.add("import 'package:flutter/foundation.dart';");
+    }
     if (_containsReference(schema.root, r'$token.')) {
       values.add(
         "import 'package:${config.projectName}/shared/theme/archsmith_design_tokens.dart';",
@@ -646,7 +670,7 @@ $callbackArguments$stateArguments$routeArguments  );
             'shrinkWrap: $shrinkWrap, '
             'physics: $physics, '
             'itemCount: items.length, '
-            'separatorBuilder: (_, __) => SizedBox(height: ${_number(properties['separator'], 0)}), '
+            'separatorBuilder: (context, index) => SizedBox(height: ${_number(properties['separator'], 0)}), '
             'itemBuilder: (context, index) { '
             'final item = items[index]; '
             'return Text($itemExpression.toString()); '
@@ -675,7 +699,7 @@ $callbackArguments$stateArguments$routeArguments  );
   ) {
     if (config.stateManagement == StateManagementType.none) {
       return 'ValueListenableBuilder<${_stateType(action)}>('
-          'valueListenable: widget.${_stateCallbackName(action)}, '
+          'valueListenable: ${_stateListenable(action)}, '
           'builder: (context, state, _) { $body })';
     }
     final builder = 'Builder(builder: (context) { '
@@ -693,8 +717,7 @@ $callbackArguments$stateArguments$routeArguments  );
           'context.watch<${action.target}>().state',
         StateManagementType.bloc => 'context.watch<${action.target}>().state',
         StateManagementType.getx => 'Get.find<${action.target}>().state.value',
-        StateManagementType.none =>
-          'widget.${_stateCallbackName(action)}.value',
+        StateManagementType.none => '${_stateListenable(action)}.value',
       };
 
   String _propertyFromState(String base, String property) {
@@ -746,7 +769,8 @@ $callbackArguments$stateArguments$routeArguments  );
         'context.read<${action.target}>().${action.method}(request)',
       StateManagementType.getx =>
         'Get.find<${action.target}>().${action.method}(request)',
-      StateManagementType.none => 'widget.${_callbackName(action)}(request)',
+      StateManagementType.none =>
+        '(widget.${_callbackName(action)}?.call(request) ?? Future<void>.value())',
     };
     final optimistic = binding.optimistic && action.supportsOptimistic
         ? _optimisticInvocation(action)
@@ -1099,8 +1123,7 @@ $resultHandling
           'context.read<${action.target}>().state.error',
         StateManagementType.getx =>
           'Get.find<${action.target}>().state.value.error',
-        StateManagementType.none =>
-          'widget.${_stateCallbackName(action)}.value.error',
+        StateManagementType.none => '${_stateListenable(action)}.value.error',
       };
 
   String? _actionCancellation(StudioActionDescriptor action) =>
@@ -1264,6 +1287,10 @@ $resultHandling
 
   String _stateCallbackName(StudioActionDescriptor action) =>
       '${_identifier(action.id)}State';
+
+  String _stateListenable(StudioActionDescriptor action) =>
+      '(widget.${_stateCallbackName(action)} ?? '
+      '_${_stateCallbackName(action)}Fallback)';
 
   String _stateType(StudioActionDescriptor action) =>
       '${names(action.operation).pascalCase}State';

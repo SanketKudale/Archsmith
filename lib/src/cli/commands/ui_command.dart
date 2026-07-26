@@ -23,27 +23,44 @@ class UiCommand extends ArchsmithCommand {
 
   @override
   String get description =>
-      'Validate or generate Flutter code from a Studio UI schema.';
+      'Validate, migrate, or generate Flutter code from a Studio UI schema.';
 
   @override
-  String get invocation => 'archsmith ui <validate|generate> <screen.json>';
+  String get invocation =>
+      'archsmith ui <validate|migrate|generate> <screen.json>';
 
   @override
   Future<int> run() async {
     final arguments = argResults!.rest;
     if (arguments.length < 2) {
       throw const FormatException(
-        'UI command requires validate|generate and a schema path.',
+        'UI command requires validate|migrate|generate and a schema path.',
       );
     }
     final operation = arguments[0];
-    if (operation != 'validate' && operation != 'generate') {
+    if (operation != 'validate' &&
+        operation != 'migrate' &&
+        operation != 'generate') {
       throw FormatException('Unsupported UI operation: $operation.');
     }
     final root = Directory.current.path;
     final path = p.normalize(
       p.isAbsolute(arguments[1]) ? arguments[1] : p.join(root, arguments[1]),
     );
+    if (operation == 'migrate') {
+      final result = await const UiSchemaStore().migrate(path);
+      if (!result.changed) {
+        stdout.writeln(
+          'UI schema is already version ${result.toVersion}: $path',
+        );
+      } else {
+        stdout.writeln(
+          'Migrated UI schema ${result.fromVersion} -> ${result.toVersion}.',
+        );
+        stdout.writeln('Backup: ${result.backupPath}');
+      }
+      return 0;
+    }
     final schema = const UiSchemaStore().read(path);
     final actions = const StudioActionRegistry().readAll(root);
     final components = StudioComponentRegistry(

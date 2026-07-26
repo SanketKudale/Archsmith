@@ -26,29 +26,44 @@ void main() {
     final file = File(p.join(directory.path, 'value.txt'))
       ..writeAsStringSync('old');
     const service = LocalFileSystemService();
-    final conflict = await service.apply(directory.path, const [
-      PlannedFile('value.txt', 'new'),
-    ], const GenerationOptions());
+    final conflict = await service.apply(
+        directory.path,
+        const [
+          PlannedFile('value.txt', 'new'),
+        ],
+        const GenerationOptions());
     expect(conflict.hasConflicts, isTrue);
     expect(file.readAsStringSync(), 'old');
-    final skipped = await service.apply(directory.path, const [
-      PlannedFile('value.txt', 'new'),
-    ], const GenerationOptions(skipExisting: true));
+    final skipped = await service.apply(
+        directory.path,
+        const [
+          PlannedFile('value.txt', 'new'),
+        ],
+        const GenerationOptions(skipExisting: true));
     expect(skipped.count(GenerationAction.skip), 1);
-    await service.apply(directory.path, const [
-      PlannedFile('value.txt', 'new'),
-    ], const GenerationOptions(force: true));
-    final repeated = await service.apply(directory.path, const [
-      PlannedFile('value.txt', 'new'),
-    ], const GenerationOptions());
+    await service.apply(
+        directory.path,
+        const [
+          PlannedFile('value.txt', 'new'),
+        ],
+        const GenerationOptions(force: true));
+    final repeated = await service.apply(
+        directory.path,
+        const [
+          PlannedFile('value.txt', 'new'),
+        ],
+        const GenerationOptions());
     expect(repeated.count(GenerationAction.skip), 1);
   });
 
   test('rejects paths outside root', () async {
     expect(
-      () => const LocalFileSystemService().apply(directory.path, const [
-        PlannedFile('../escape.txt', 'no'),
-      ], const GenerationOptions()),
+      () => const LocalFileSystemService().apply(
+          directory.path,
+          const [
+            PlannedFile('../escape.txt', 'no'),
+          ],
+          const GenerationOptions()),
       throwsArgumentError,
     );
   });

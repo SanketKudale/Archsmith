@@ -73,29 +73,29 @@ class ArchsmithConfig {
   }
 
   Map<String, Object?> toMap() => {
-    'project': {'name': projectName},
-    'architecture': {'type': architecture.value},
-    'state_management': {'type': stateManagement.value},
-    'router': {'type': router.value},
-    'network': {'type': network.value},
-    'modules': {
-      'localization': modules.localization,
-      'theme': modules.theme,
-      'secure_storage': modules.secureStorage,
-      'runtime_protection': modules.runtimeProtection,
-    },
-    if (modules.runtimeProtection)
-      'runtime_protection': {
-        'profile': runtimeProtectionProfile!.value,
-        'checks': runtimeChecks,
-      },
-    'generation': {
-      'generate_tests': generation.generateTests,
-      'use_barrel_files': generation.useBarrelFiles,
-      'format_after_generation': generation.formatAfterGeneration,
-      'analyze_after_generation': generation.analyzeAfterGeneration,
-    },
-  };
+        'project': {'name': projectName},
+        'architecture': {'type': architecture.value},
+        'state_management': {'type': stateManagement.value},
+        'router': {'type': router.value},
+        'network': {'type': network.value},
+        'modules': {
+          'localization': modules.localization,
+          'theme': modules.theme,
+          'secure_storage': modules.secureStorage,
+          'runtime_protection': modules.runtimeProtection,
+        },
+        if (modules.runtimeProtection)
+          'runtime_protection': {
+            'profile': runtimeProtectionProfile!.value,
+            'checks': runtimeChecks,
+          },
+        'generation': {
+          'generate_tests': generation.generateTests,
+          'use_barrel_files': generation.useBarrelFiles,
+          'format_after_generation': generation.formatAfterGeneration,
+          'analyze_after_generation': generation.analyzeAfterGeneration,
+        },
+      };
 
   factory ArchsmithConfig.fromMap(Map<Object?, Object?> map) {
     Map<Object?, Object?> section(String key) {

@@ -179,21 +179,18 @@ class ApiContractReader {
   List<ApiField> _fields(Object? value, String location) {
     if (value == null) return const [];
     final source = _map(value, location);
-    return source.entries
-        .map((entry) {
-          if (entry.value is String) {
-            return ApiField(name: entry.key, type: entry.value! as String);
-          }
-          final details = _map(entry.value, '$location.${entry.key}');
-          return ApiField(
-            name: entry.key,
-            type: _requiredString(details, 'type'),
-            required: details['required'] is bool
-                ? details['required']! as bool
-                : true,
-          );
-        })
-        .toList(growable: false);
+    return source.entries.map((entry) {
+      if (entry.value is String) {
+        return ApiField(name: entry.key, type: entry.value! as String);
+      }
+      final details = _map(entry.value, '$location.${entry.key}');
+      return ApiField(
+        name: entry.key,
+        type: _requiredString(details, 'type'),
+        required:
+            details['required'] is bool ? details['required']! as bool : true,
+      );
+    }).toList(growable: false);
   }
 
   void _addModel(List<ApiModel> models, Set<String> names, ApiModel model) {
@@ -279,8 +276,8 @@ class ApiContractReader {
     }
     return List<Object?>.unmodifiable(
       value.asMap().entries.map(
-        (entry) => _jsonValue(entry.value, '$location[${entry.key}]'),
-      ),
+            (entry) => _jsonValue(entry.value, '$location[${entry.key}]'),
+          ),
     );
   }
 

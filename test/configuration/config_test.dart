@@ -16,9 +16,12 @@ void main() {
       runtimeProtectionProfile: RuntimeProtectionProfile.financial,
       runtimeChecks: {'vpn': 'warn', 'root': 'block_screen'},
     );
-    await const LocalFileSystemService().apply(directory.path, [
-      const ConfigWriter().plan(config),
-    ], const GenerationOptions());
+    await const LocalFileSystemService().apply(
+        directory.path,
+        [
+          const ConfigWriter().plan(config),
+        ],
+        const GenerationOptions());
 
     final restored = const ConfigReader().read(
       p.join(directory.path, 'archsmith.yaml'),

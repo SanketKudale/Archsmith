@@ -228,7 +228,7 @@ class RouteRegistryGenerator {
     final page = names(route.name);
     if (route.arguments.isEmpty) {
       return '  GoRoute(path: AppRoutes.${page.camelCase}, '
-          'builder: (_, __) => const ${route.className}()),';
+          'builder: (context, state) => const ${route.className}()),';
     }
     return '  GoRoute(path: AppRoutes.${page.camelCase}, '
         'builder: (_, state) { final args = state.extra! as '

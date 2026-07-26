@@ -134,7 +134,7 @@ async function request(url, options) {
 async function init() {
   bootstrap = await request('/api/bootstrap');
   schema = {
-    version: 1, name: 'home', feature: 'home', route: '/home',
+    version: bootstrap.ui_schema_version, name: 'home', feature: 'home', route: '/home',
     breakpoints: bootstrap.breakpoints,
     root: {id:'page',type:'appScaffold',properties:{title:'Home'},children:[]}
   };
@@ -212,7 +212,7 @@ function redo(){
 function updateHistoryButtons(){$('undo').disabled=!history.length;$('redo').disabled=!future.length}
 function syncScreenFields(){$('screenName').value=schema.name;$('featureName').value=schema.feature||schema.name;$('route').value=schema.route||'';$('routeArguments').value=JSON.stringify(schema.route_arguments||[],null,2)}
 function freshSchema(name='home'){
-  return {version:1,name,feature:name,route:`/${name.replaceAll('_','-')}`,breakpoints:JSON.parse(JSON.stringify(bootstrap.breakpoints)),root:{id:'page',type:'appScaffold',properties:{title:name.replaceAll('_',' ')},children:[]}};
+  return {version:bootstrap.ui_schema_version,name,feature:name,route:`/${name.replaceAll('_','-')}`,breakpoints:JSON.parse(JSON.stringify(bootstrap.breakpoints)),root:{id:'page',type:'appScaffold',properties:{title:name.replaceAll('_',' ')},children:[]}};
 }
 function newScreen(){checkpoint();schema=freshSchema('new_screen');selected=null;syncScreenFields();$('screens').value='';renderBreakpoints();render()}
 function duplicateScreen(){checkpoint();schema=JSON.parse(JSON.stringify(schema));schema.name=`${schema.name}_copy`;schema.feature=`${schema.feature||schema.name}_copy`;schema.route=`${schema.route||'/screen'}-copy`;selected=null;syncScreenFields();$('screens').value='';renderBreakpoints();render()}

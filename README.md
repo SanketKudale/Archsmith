@@ -230,9 +230,14 @@ The editable, versioned screen source is stored in `.archsmith/ui/<screen>.json`
 
 ```shell
 archsmith ui validate .archsmith/ui/account_deactivate.json
+archsmith ui migrate .archsmith/ui/account_deactivate.json
 archsmith ui generate .archsmith/ui/account_deactivate.json --dry-run
 archsmith ui generate .archsmith/ui/account_deactivate.json
 ```
+
+Studio reads older v1 screen schemas and migrates them in memory. The explicit
+`ui migrate` command writes the current v2 schema and first preserves the
+original beside it as `<screen>.json.v1.backup`.
 
 Generation creates two page files:
 
@@ -301,17 +306,28 @@ Every architecture includes reusable UI under `lib/shared/widgets`: `AppScaffold
 fvm dart format .
 fvm dart analyze
 fvm dart test
+fvm dart run tool/verify_generated_apps.dart --state riverpod --network dio
+fvm dart run bin/archsmith.dart release-check
 fvm dart pub publish --dry-run
 ```
+
+`release-check` verifies package metadata, formatting, analysis, tests, and a
+pub.dev dry-run. Add `--generated-matrix` to compile generated Flutter projects
+for framework-only, Riverpod, Provider, BLoC/Cubit, and GetX. It never publishes
+the package. Set `ARCHSMITH_FLUTTER_BIN` when a specific Flutter SDK should be
+used by the generated-app verifier.
+
+CI repeats the package checks on Dart 3.0 and current stable Dart, runs the
+Studio through a real headless browser when Chrome or Edge is available, and
+analyzes generated applications on Flutter 3.10 and current stable Flutter.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
 ## Roadmap
 
-- Structured router updates and richer golden fixtures
 - Native `runtime_guard` adapter packages
-- Additional dependency-injection and localization strategies
-- Project migration and configuration upgrade commands
+- Additional import formats for OpenAPI and Postman collections
+- Optional team-hosted collaboration and design-system synchronization
 
 ## License
 

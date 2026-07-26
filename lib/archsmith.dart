@@ -10,6 +10,7 @@ export 'src/api/api_runtime_generator.dart';
 export 'src/api/clean_api_feature_generator.dart';
 export 'src/api/json_api_endpoint.dart';
 export 'src/cli/archsmith_runner.dart';
+export 'src/cli/command_context.dart';
 export 'src/configuration/archsmith_config.dart';
 export 'src/configuration/config_reader.dart';
 export 'src/configuration/config_writer.dart';

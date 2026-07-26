@@ -82,9 +82,8 @@ class TerminalPromptService implements PromptService {
     }
     final answer = await askText('Selections');
     if (answer.isEmpty) return {};
-    final indexes = answer
-        .split(',')
-        .map((value) => int.tryParse(value.trim()));
+    final indexes =
+        answer.split(',').map((value) => int.tryParse(value.trim()));
     if (indexes.any(
       (value) => value == null || value < 1 || value > choices.length,
     )) {
