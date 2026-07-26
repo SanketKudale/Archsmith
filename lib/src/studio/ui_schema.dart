@@ -108,6 +108,7 @@ class UiNode {
     this.responsive = const {},
     this.children = const [],
     this.action,
+    this.actions = const [],
   });
 
   factory UiNode.fromJson(Map<String, Object?> json) {
@@ -141,6 +142,11 @@ class UiNode {
           : UiActionBinding.fromJson(
               Map<String, Object?>.from(json['action'] as Map),
             ),
+      actions: json['actions'] == null
+          ? const []
+          : _objectList(json['actions'], 'actions')
+              .map(UiActionBinding.fromJson)
+              .toList(growable: false),
     );
   }
 
@@ -150,6 +156,7 @@ class UiNode {
   final Map<String, Map<String, Object?>> responsive;
   final List<UiNode> children;
   final UiActionBinding? action;
+  final List<UiActionBinding> actions;
 
   Map<String, Object?> toJson() => {
         'id': id,
@@ -159,6 +166,8 @@ class UiNode {
         if (children.isNotEmpty)
           'children': children.map((item) => item.toJson()).toList(),
         if (action != null) 'action': action!.toJson(),
+        if (actions.isNotEmpty)
+          'actions': actions.map((item) => item.toJson()).toList(),
       };
 }
 
@@ -169,6 +178,10 @@ class UiActionBinding {
     this.method = 'execute',
     this.arguments = const {},
     this.onSuccessRoute,
+    this.onErrorRoute,
+    this.runWhen = 'always',
+    this.successMessage,
+    this.errorMessage,
   });
 
   factory UiActionBinding.fromJson(Map<String, Object?> json) {
@@ -181,11 +194,25 @@ class UiActionBinding {
         (successRoute is! String || !successRoute.startsWith('/'))) {
       throw const FormatException('Success route must start with /.');
     }
+    final errorRoute = json['on_error_route'];
+    if (errorRoute != null &&
+        (errorRoute is! String || !errorRoute.startsWith('/'))) {
+      throw const FormatException('Error route must start with /.');
+    }
+    final runWhen = json['run_when']?.toString() ?? 'always';
+    if (!const {'always', 'previousSuccess', 'previousError'}
+        .contains(runWhen)) {
+      throw FormatException('Unsupported action condition: $runWhen.');
+    }
     return UiActionBinding(
       actionId: actionId.trim(),
       method: json['method']?.toString() ?? 'execute',
       arguments: Map.unmodifiable(_map(json['arguments'], 'arguments')),
       onSuccessRoute: successRoute as String?,
+      onErrorRoute: errorRoute as String?,
+      runWhen: runWhen,
+      successMessage: json['success_message']?.toString(),
+      errorMessage: json['error_message']?.toString(),
     );
   }
 
@@ -193,12 +220,20 @@ class UiActionBinding {
   final String method;
   final Map<String, Object?> arguments;
   final String? onSuccessRoute;
+  final String? onErrorRoute;
+  final String runWhen;
+  final String? successMessage;
+  final String? errorMessage;
 
   Map<String, Object?> toJson() => {
         'action_id': actionId,
         'method': method,
         if (arguments.isNotEmpty) 'arguments': arguments,
         if (onSuccessRoute != null) 'on_success_route': onSuccessRoute,
+        if (onErrorRoute != null) 'on_error_route': onErrorRoute,
+        if (runWhen != 'always') 'run_when': runWhen,
+        if (successMessage != null) 'success_message': successMessage,
+        if (errorMessage != null) 'error_message': errorMessage,
       };
 }
 

@@ -379,4 +379,92 @@ void main() {
     );
     expect(format.exitCode, 0, reason: format.stderr.toString());
   });
+
+  test('generates confirmed conditional flows with debounce and feedback',
+      () async {
+    const actions = [
+      StudioActionDescriptor(
+        id: 'checkout.validate',
+        feature: 'checkout',
+        operation: 'validate',
+        stateManagement: 'riverpod',
+        target: 'validateProvider',
+        method: 'execute',
+        requestType: 'ValidateRequestEntity',
+        parameters: [StudioActionParameter(name: 'id', type: 'String')],
+      ),
+      StudioActionDescriptor(
+        id: 'checkout.submit',
+        feature: 'checkout',
+        operation: 'submit',
+        stateManagement: 'riverpod',
+        target: 'submitProvider',
+        method: 'execute',
+        requestType: 'SubmitRequestEntity',
+        parameters: [StudioActionParameter(name: 'id', type: 'String')],
+      ),
+    ];
+    const schema = UiScreenSchema(
+      name: 'checkout',
+      root: UiNode(
+        id: 'page',
+        type: 'column',
+        children: [
+          UiNode(
+            id: 'checkout_button',
+            type: 'appButton',
+            properties: {
+              'confirmationTitle': 'Place order?',
+              'confirmationMessage': 'Your payment will be submitted.',
+              'debounceMs': 250,
+              'cancelPrevious': true,
+            },
+            action: UiActionBinding(
+              actionId: 'checkout.validate',
+              arguments: {'id': '42'},
+              successMessage: 'Validated',
+            ),
+            actions: [
+              UiActionBinding(
+                actionId: 'checkout.submit',
+                arguments: {'id': '42'},
+                runWhen: 'previousSuccess',
+                errorMessage: 'Could not submit',
+                onErrorRoute: '/failed',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    final source = const UiCodeGenerator()
+        .generate(
+          config: ArchsmithConfig(projectName: 'sample_app'),
+          schema: schema,
+          actions: actions,
+        )
+        .first
+        .content;
+
+    expect(source, contains('_runCheckoutButtonFlow'));
+    expect(source, contains('Duration(milliseconds: 250)'));
+    expect(source, contains('flowGeneration != _checkoutButtonFlowGeneration'));
+    expect(source, contains('showDialog<bool>'));
+    expect(source, contains('if (previousSucceeded)'));
+    expect(source, contains("_showActionMessage('Validated')"));
+    expect(source, contains("Navigator.of(context).pushNamed('/failed')"));
+
+    final directory = await Directory.systemTemp.createTemp(
+      'archsmith_action_flow_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File(p.join(directory.path, 'page.dart'));
+    await file.writeAsString(source);
+    final format = await Process.run(
+      Platform.resolvedExecutable,
+      ['format', '--output=none', file.path],
+    );
+    expect(format.exitCode, 0, reason: format.stderr.toString());
+  });
 }

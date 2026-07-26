@@ -305,10 +305,19 @@ const _components = <StudioComponentDescriptor>[
     label: 'App Button',
     category: 'Common',
     acceptsChildren: false,
-    defaults: {'label': 'Continue'},
+    defaults: {
+      'label': 'Continue',
+      'confirmationMessage': '',
+      'debounceMs': 0,
+      'cancelPrevious': true,
+    },
     properties: [
       StudioPropertyDescriptor('label', 'string'),
       StudioPropertyDescriptor('enabled', 'boolean'),
+      StudioPropertyDescriptor('confirmationTitle', 'string'),
+      StudioPropertyDescriptor('confirmationMessage', 'string'),
+      StudioPropertyDescriptor('debounceMs', 'number'),
+      StudioPropertyDescriptor('cancelPrevious', 'boolean'),
     ],
   ),
   StudioComponentDescriptor(
@@ -337,6 +346,7 @@ const _components = <StudioComponentDescriptor>[
       'errorText': 'Could not load items',
       'shrinkWrap': true,
       'refreshable': true,
+      'paginationLabel': 'Load more',
     },
     properties: [
       StudioPropertyDescriptor('binding', 'listBinding'),
@@ -345,6 +355,7 @@ const _components = <StudioComponentDescriptor>[
       StudioPropertyDescriptor('errorText', 'string'),
       StudioPropertyDescriptor('shrinkWrap', 'boolean'),
       StudioPropertyDescriptor('refreshable', 'boolean'),
+      StudioPropertyDescriptor('paginationLabel', 'string'),
       StudioPropertyDescriptor('separator', 'number'),
     ],
   ),
@@ -360,6 +371,7 @@ const _components = <StudioComponentDescriptor>[
       'childAspectRatio': 1,
       'shrinkWrap': true,
       'refreshable': true,
+      'paginationLabel': 'Load more',
     },
     properties: [
       StudioPropertyDescriptor('binding', 'listBinding'),
@@ -370,6 +382,7 @@ const _components = <StudioComponentDescriptor>[
       StudioPropertyDescriptor('childAspectRatio', 'number'),
       StudioPropertyDescriptor('shrinkWrap', 'boolean'),
       StudioPropertyDescriptor('refreshable', 'boolean'),
+      StudioPropertyDescriptor('paginationLabel', 'string'),
       StudioPropertyDescriptor('spacing', 'number'),
     ],
   ),

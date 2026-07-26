@@ -36,5 +36,8 @@ void main() {
     expect(StudioAssets.js, contains("add.textContent='Add item'"));
     expect(StudioAssets.js, contains('function responseListPaths'));
     expect(StudioAssets.js, contains("'stateList','stateGrid'"));
+    expect(StudioAssets.html, contains('id="flowSteps"'));
+    expect(StudioAssets.js, contains('function renderFlowSteps'));
+    expect(StudioAssets.js, contains("'previousError'"));
   });
 }

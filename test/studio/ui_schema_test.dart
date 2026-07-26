@@ -207,4 +207,59 @@ void main() {
       contains('Unknown state binding data.missing.'),
     );
   });
+
+  test('round-trips conditional multi-action flows and feedback', () {
+    const schema = UiScreenSchema(
+      name: 'checkout',
+      root: UiNode(
+        id: 'submit',
+        type: 'appButton',
+        action: UiActionBinding(
+          actionId: 'checkout.validate',
+          arguments: {'id': '42'},
+          successMessage: 'Validated',
+        ),
+        actions: [
+          UiActionBinding(
+            actionId: 'checkout.submit',
+            arguments: {'id': '42'},
+            runWhen: 'previousSuccess',
+            onErrorRoute: '/failed',
+            errorMessage: 'Submission failed',
+          ),
+        ],
+      ),
+    );
+    const actions = [
+      StudioActionDescriptor(
+        id: 'checkout.validate',
+        feature: 'checkout',
+        operation: 'validate',
+        stateManagement: 'riverpod',
+        target: 'validateProvider',
+        method: 'execute',
+        requestType: 'ValidateRequestEntity',
+        parameters: [StudioActionParameter(name: 'id', type: 'String')],
+      ),
+      StudioActionDescriptor(
+        id: 'checkout.submit',
+        feature: 'checkout',
+        operation: 'submit',
+        stateManagement: 'riverpod',
+        target: 'submitProvider',
+        method: 'execute',
+        requestType: 'SubmitRequestEntity',
+        parameters: [StudioActionParameter(name: 'id', type: 'String')],
+      ),
+    ];
+
+    final restored = UiScreenSchema.fromJson(schema.toJson());
+
+    expect(restored.root.actions.single.runWhen, 'previousSuccess');
+    expect(restored.root.actions.single.onErrorRoute, '/failed');
+    expect(
+      const UiSchemaValidator().validate(restored, actions: actions),
+      isEmpty,
+    );
+  });
 }

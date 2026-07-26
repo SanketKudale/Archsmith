@@ -216,6 +216,8 @@ Generated action metadata also contains the nested backend response shape. A Sta
 
 Response List and Response Grid components bind directly to list-valued response paths, expose nested item text fields, and generate loading, first-page error, empty, pull-to-refresh, spacing, and responsive grid-column presentation without handwritten state branching.
 
+The inspector can compose ordered API action flows without Dart edits. Each step has typed request mapping, an `always`, `previousSuccess`, or `previousError` condition, success/error feedback, and success/error navigation. Buttons can add confirmation, debounce, and stale-flow cancellation; response collections can attach a load-more flow for backend pagination.
+
 The editable, versioned screen source is stored in `.archsmith/ui/<screen>.json`. Generate or validate the same source without opening a browser:
 
 ```shell

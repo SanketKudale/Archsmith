@@ -121,6 +121,11 @@ class _FlutterRenderer {
               '  final _${_identifier(node.id)}Controller = TextEditingController();',
         )
         .join('\n');
+    final flowFields = _flowNodes()
+        .map(
+          (node) => '  int _${_identifier(node.id)}FlowGeneration = 0;',
+        )
+        .join('\n');
     final dispose = textFields.isEmpty
         ? ''
         : '''
@@ -138,9 +143,22 @@ ${textFields.map((node) => '    _${_identifier(node.id)}Controller.dispose();').
         )
         .join('\n');
     final actionMethods = invokedActions.map(_actionMethod).join('\n');
+    final flowMethods = _flowNodes().map(_actionFlowMethod).join('\n');
     final validationHelper = invokedActions.any(_hasBoundInputs)
         ? '''
   void _showValidationError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+'''
+        : '';
+    final actionMessageHelper = _nodes(schema.root).expand(_bindings).any(
+            (binding) =>
+                binding.successMessage != null || binding.errorMessage != null)
+        ? '''
+  void _showActionMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
@@ -163,7 +181,8 @@ $callbackFields
 }
 
 class _${classPrefix}PageViewState extends $stateBase {
-$controllerFields$dispose
+$controllerFields
+$flowFields$dispose
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -173,7 +192,7 @@ ${_breakpointSelection()}
       );
 
 $breakpointMethods
-$actionMethods$validationHelper}
+$actionMethods$flowMethods$validationHelper$actionMessageHelper}
 ''';
   }
 
@@ -334,7 +353,7 @@ $callbackArguments  );
           'obscureText: ${properties['obscureText'] == true})',
       'appButton' => 'AppButton('
           'label: ${_string((properties['label'] ?? 'Continue').toString())}, '
-          'onPressed: ${properties['enabled'] == false ? 'null' : _callback(node.action)})',
+          'onPressed: ${properties['enabled'] == false ? 'null' : _callback(node)})',
       'appLoadingIndicator' => _loadingWidget(node.action),
       'stateText' => _stateText(node, properties),
       'stateList' => _stateCollection(node, properties, isGrid: false),
@@ -411,9 +430,11 @@ $callbackArguments  );
         'children: [${spaced.join(', ')}])';
   }
 
-  String _callback(UiActionBinding? binding) {
-    if (binding == null) return 'null';
-    return '_run${_pascal(binding.actionId)}';
+  String _callback(UiNode node) {
+    final executable = _executableBindings(node);
+    if (executable.isEmpty) return 'null';
+    if (_needsFlow(node)) return '_run${_pascal(node.id)}Flow';
+    return '_run${_pascal(executable.single.actionId)}';
   }
 
   String _loadingWidget(UiActionBinding? binding) {
@@ -488,13 +509,19 @@ $callbackArguments  );
     final presented = refreshable
         ? 'RefreshIndicator(onRefresh: state.retry, child: $collection)'
         : collection;
+    final paginated = node.actions.isEmpty
+        ? presented
+        : 'Column(mainAxisSize: MainAxisSize.min, children: ['
+            '$presented, '
+            'AppButton(label: ${_string((properties['paginationLabel'] ?? 'Load more').toString())}, '
+            'onPressed: ${_callback(node)})])';
     final builder = 'Builder(builder: (context) { '
         'final state = $state; '
         'final items = $listExpression ?? const []; '
         'if (state.isLoading && items.isEmpty) return const AppLoadingIndicator(); '
         'if (state.error != null && items.isEmpty) return Text($errorText); '
         'if (items.isEmpty) return Text($emptyText); '
-        'return $presented; '
+        'return $paginated; '
         '})';
     return config.stateManagement == StateManagementType.getx
         ? 'Obx(() => $builder)'
@@ -539,10 +566,7 @@ $callbackArguments  );
   }
 
   String _actionMethod(StudioActionDescriptor action) {
-    final binding = _nodes(schema.root)
-        .map((node) => node.action)
-        .whereType<UiActionBinding>()
-        .firstWhere(
+    final binding = _nodes(schema.root).expand(_bindings).firstWhere(
           (item) => item.actionId == action.id && item.method != 'watch',
         );
     final validations = StringBuffer();
@@ -582,21 +606,121 @@ $callbackArguments  );
         'Get.find<${action.target}>().${action.method}(request)',
       StateManagementType.none => 'widget.${_callbackName(action)}(request)',
     };
-    final navigation = binding.onSuccessRoute == null
-        ? ''
-        : "\n    if (!mounted) return;"
-            "\n    if (${_actionErrorExpression(action)} != null) return;"
-            "\n    await Navigator.of(context).pushNamed("
-            "${_string(binding.onSuccessRoute!)});";
+    final resultHandling = StringBuffer()
+      ..writeln('    if (!mounted) return;')
+      ..writeln('    final actionError = ${_actionErrorExpression(action)};')
+      ..writeln('    if (actionError != null) {');
+    if (binding.errorMessage != null) {
+      resultHandling.writeln(
+        '      _showActionMessage(${_string(binding.errorMessage!)});',
+      );
+    }
+    if (binding.onErrorRoute != null) {
+      resultHandling.writeln(
+        '      await Navigator.of(context).pushNamed('
+        '${_string(binding.onErrorRoute!)});',
+      );
+    }
+    resultHandling
+      ..writeln('      return;')
+      ..writeln('    }');
+    if (binding.successMessage != null) {
+      resultHandling.writeln(
+        '    _showActionMessage(${_string(binding.successMessage!)});',
+      );
+    }
+    if (binding.onSuccessRoute != null) {
+      resultHandling.writeln(
+        '    await Navigator.of(context).pushNamed('
+        '${_string(binding.onSuccessRoute!)});',
+      );
+    }
     return '''
   Future<void> _run${_pascal(action.id)}() async {
 $validations    final request = ${action.requestType}(
 $arguments
     );
-    await $invoke;$navigation
+    await $invoke;
+$resultHandling
   }
 
 ''';
+  }
+
+  String _actionFlowMethod(UiNode node) {
+    final bindings = _executableBindings(node);
+    final properties = node.properties;
+    final generation = '_${_identifier(node.id)}FlowGeneration';
+    final cancelPrevious = properties['cancelPrevious'] != false;
+    final debounce = properties['debounceMs'] is num
+        ? (properties['debounceMs'] as num).toInt()
+        : 0;
+    final buffer = StringBuffer(
+      '  Future<void> _run${_pascal(node.id)}Flow() async {\n',
+    );
+    buffer.writeln('    final flowGeneration = ++$generation;');
+    if (debounce > 0) {
+      buffer.writeln(
+        '    await Future<void>.delayed('
+        'const Duration(milliseconds: $debounce));',
+      );
+    }
+    if (cancelPrevious) {
+      buffer.writeln(
+        '    if (!mounted || flowGeneration != $generation) return;',
+      );
+    }
+    final confirmation = properties['confirmationMessage']?.toString() ?? '';
+    if (confirmation.isNotEmpty) {
+      final title =
+          (properties['confirmationTitle'] ?? 'Please confirm').toString();
+      buffer
+        ..writeln('    final confirmed = await showDialog<bool>(')
+        ..writeln('      context: context,')
+        ..writeln('      builder: (context) => AlertDialog(')
+        ..writeln('        title: Text(${_string(title)}),')
+        ..writeln('        content: Text(${_string(confirmation)}),')
+        ..writeln('        actions: [')
+        ..writeln(
+          "          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),",
+        )
+        ..writeln(
+          "          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Continue')),",
+        )
+        ..writeln('        ],')
+        ..writeln('      ),')
+        ..writeln('    );')
+        ..writeln('    if (confirmed != true || !mounted) return;');
+    }
+    buffer.writeln('    var previousSucceeded = true;');
+    for (final binding in bindings) {
+      final action = actions.singleWhere(
+        (item) => item.id == binding.actionId,
+      );
+      final condition = switch (binding.runWhen) {
+        'previousSuccess' => 'previousSucceeded',
+        'previousError' => '!previousSucceeded',
+        _ => 'true',
+      };
+      buffer
+        ..writeln('    if ($condition) {')
+        ..writeln('      await _run${_pascal(action.id)}();');
+      if (cancelPrevious) {
+        buffer.writeln(
+          '      if (!mounted || flowGeneration != $generation) return;',
+        );
+      }
+      buffer
+        ..writeln(
+          '      previousSucceeded = '
+          '${_actionErrorExpression(action)} == null;',
+        )
+        ..writeln('    }');
+    }
+    buffer
+      ..writeln('  }')
+      ..writeln();
+    return buffer.toString();
   }
 
   String _argument(
@@ -822,10 +946,7 @@ $arguments
       };
 
   bool _hasBoundInputs(StudioActionDescriptor action) {
-    final bindings = _nodes(schema.root)
-        .map((node) => node.action)
-        .whereType<UiActionBinding>()
-        .where(
+    final bindings = _nodes(schema.root).expand(_bindings).where(
           (item) => item.actionId == action.id && item.method != 'watch',
         );
     final binding = bindings.isEmpty ? null : bindings.first;
@@ -891,11 +1012,34 @@ $arguments
 
   Iterable<StudioActionDescriptor> _invokedActions() => actions.where(
         (action) => _nodes(schema.root).any(
-          (node) =>
-              node.action?.actionId == action.id &&
-              node.action?.method != 'watch',
+          (node) => _bindings(node).any(
+            (binding) =>
+                binding.actionId == action.id && binding.method != 'watch',
+          ),
         ),
       );
+
+  Iterable<UiActionBinding> _bindings(UiNode node) sync* {
+    if (node.action != null) yield node.action!;
+    yield* node.actions;
+  }
+
+  List<UiActionBinding> _executableBindings(UiNode node) => _bindings(node)
+      .where((binding) => binding.method != 'watch')
+      .toList(growable: false);
+
+  bool _needsFlow(UiNode node) {
+    final bindings = _executableBindings(node);
+    return bindings.length > 1 ||
+        node.actions.isNotEmpty ||
+        (node.properties['confirmationMessage']?.toString().isNotEmpty ??
+            false) ||
+        (node.properties['debounceMs'] is num &&
+            (node.properties['debounceMs'] as num) > 0);
+  }
+
+  Iterable<UiNode> _flowNodes() =>
+      _nodes(schema.root).where((node) => _needsFlow(node));
 
   String _callbackName(StudioActionDescriptor action) =>
       '${_identifier(action.id)}Action';
@@ -911,8 +1055,12 @@ List<StudioActionDescriptor> _selectedActions(
   List<StudioActionDescriptor> actions,
 ) {
   final ids = _nodes(root)
-      .map((node) => node.action?.actionId)
-      .whereType<String>()
+      .expand(
+        (node) => [
+          if (node.action != null) node.action!.actionId,
+          ...node.actions.map((binding) => binding.actionId),
+        ],
+      )
       .toSet();
   return actions.where((action) => ids.contains(action.id)).toList()
     ..sort((left, right) => left.id.compareTo(right.id));

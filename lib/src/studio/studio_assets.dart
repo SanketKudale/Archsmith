@@ -51,6 +51,13 @@ abstract final class StudioAssets {
         </label>
         <div id="arguments"></div>
         <label>Success route<input id="successRoute" placeholder="/next"></label>
+        <label>Error route<input id="errorRoute" placeholder="/try-again"></label>
+        <label>Success feedback<input id="successMessage" placeholder="Saved successfully"></label>
+        <label>Error feedback<input id="errorMessage" placeholder="Could not save"></label>
+        <hr>
+        <h2>Action flow</h2>
+        <div id="flowSteps"></div>
+        <button id="addFlowStep" class="secondary wide">Add API step</button>
         <button id="duplicate" class="secondary wide">Duplicate component</button>
         <button id="remove" class="danger">Remove component</button>
       </div>
@@ -81,6 +88,7 @@ main{height:calc(100vh - 64px);display:grid;grid-template-columns:240px minmax(4
 label{display:block;font-size:12px;color:#98a3b6;margin:12px 0 5px}label input,label select{margin-top:5px}.property{margin-bottom:10px}hr{border:0;border-top:1px solid #293042;margin:18px 0}.arg-help{font-size:11px;color:#778399;margin-top:3px}
 .override{display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;background:#171d2a}.override input{width:auto;margin:0}
 .parameter-group{margin:10px 0;padding:10px;border:1px solid #2c3548;border-radius:9px}.parameter-title{font-size:12px;color:#b6c0d2;margin-bottom:8px}.list-item{position:relative;margin:8px 0;padding:8px;background:#151b27;border-radius:8px}.list-item .remove-item{position:absolute;right:6px;top:6px;width:auto;padding:3px 7px;background:#542a36}.add-item{width:100%;margin-top:7px;background:#293247}
+.flow-step{margin:10px 0;padding:10px;border:1px solid #38425a;border-radius:9px;background:#151b27}.flow-step-head{display:flex;gap:7px}.flow-step-head button{padding:5px 9px;background:#542a36}.flow-step label{margin-top:8px}
 ''';
 
   static const js = r'''
@@ -246,6 +254,10 @@ function renderInspector(){
   });
   renderActions($('actionSearch').value);
   $('successRoute').value=selected.action?.on_success_route||'';
+  $('errorRoute').value=selected.action?.on_error_route||'';
+  $('successMessage').value=selected.action?.success_message||'';
+  $('errorMessage').value=selected.action?.error_message||'';
+  renderFlowSteps();
 }
 function renderActions(filter=''){
   const select=$('actionSelect'), current=selected?.action?.action_id||'';select.innerHTML='<option value="">No action</option>';
@@ -260,6 +272,29 @@ function renderArguments(){
     renderParameter(parameter,selected.action.arguments?.[parameter.name],host,value=>{
       selected.action.arguments||={};selected.action.arguments[parameter.name]=value;
     },fields);
+  });
+}
+function renderFlowSteps(){
+  const host=$('flowSteps');host.innerHTML='';selected.actions||=[];
+  selected.actions.forEach((binding,index)=>{
+    const step=document.createElement('div');step.className='flow-step';
+    const head=document.createElement('div');head.className='flow-step-head';
+    const actionSelect=document.createElement('select');
+    bootstrap.actions.forEach(action=>actionSelect.add(new Option(`${action.id} · ${action.target}`,action.id)));
+    actionSelect.value=binding.action_id;
+    actionSelect.onchange=()=>{const action=bootstrap.actions.find(item=>item.id===actionSelect.value);checkpoint();selected.actions[index]={action_id:action.id,method:'execute',arguments:defaultArguments(action),run_when:binding.run_when||'always'};renderInspector()};
+    const remove=document.createElement('button');remove.textContent='×';remove.title='Remove step';
+    remove.onclick=()=>{checkpoint();selected.actions.splice(index,1);renderInspector()};
+    head.appendChild(actionSelect);head.appendChild(remove);step.appendChild(head);
+    const condition=document.createElement('select');
+    [['always','Always'],['previousSuccess','After previous success'],['previousError','After previous error']].forEach(([value,label])=>condition.add(new Option(label,value)));
+    condition.value=binding.run_when||'always';condition.onchange=()=>{checkpoint();binding.run_when=condition.value};
+    const conditionLabel=document.createElement('label');conditionLabel.textContent='Run condition';conditionLabel.appendChild(condition);step.appendChild(conditionLabel);
+    const feedback=[['success_message','Success feedback'],['error_message','Error feedback'],['on_success_route','Success route'],['on_error_route','Error route']];
+    feedback.forEach(([key,title])=>{const label=document.createElement('label');label.textContent=title;const input=document.createElement('input');input.value=binding[key]||'';input.onchange=()=>{checkpoint();binding[key]=input.value||undefined};label.appendChild(input);step.appendChild(label)});
+    const action=bootstrap.actions.find(item=>item.id===binding.action_id),fields=allNodes(schema.root).filter(node=>node.type==='appTextField');
+    action?.parameters.forEach(parameter=>renderParameter(parameter,binding.arguments?.[parameter.name],step,value=>{binding.arguments||={};binding.arguments[parameter.name]=value},fields));
+    host.appendChild(step);
   });
 }
 function renderParameter(parameter,current,host,setValue,fields){
@@ -366,6 +401,10 @@ function bindControls(){
   $('actionSearch').oninput=e=>renderActions(e.target.value);
   $('actionSelect').onchange=e=>{checkpoint();const watches=['appLoadingIndicator','stateText','stateList','stateGrid'].includes(selected.type),action=bootstrap.actions.find(item=>item.id===e.target.value);selected.action=action?{action_id:action.id,method:watches?'watch':'execute',arguments:watches?{}:defaultArguments(action)}:undefined;renderInspector()};
   $('successRoute').onchange=e=>{if(selected.action){checkpoint();selected.action.on_success_route=e.target.value||undefined}};
+  $('errorRoute').onchange=e=>{if(selected.action){checkpoint();selected.action.on_error_route=e.target.value||undefined}};
+  $('successMessage').onchange=e=>{if(selected.action){checkpoint();selected.action.success_message=e.target.value||undefined}};
+  $('errorMessage').onchange=e=>{if(selected.action){checkpoint();selected.action.error_message=e.target.value||undefined}};
+  $('addFlowStep').onclick=()=>{const action=bootstrap.actions[0];if(!action)return setStatus('Generate an API action first.',true);checkpoint();selected.actions||=[];selected.actions.push({action_id:action.id,method:'execute',arguments:defaultArguments(action),run_when:'previousSuccess'});renderInspector()};
   $('undo').onclick=undo;$('redo').onclick=redo;$('duplicate').onclick=duplicateSelected;
   $('remove').onclick=removeSelected;
   $('save').onclick=()=>persist(false);$('generate').onclick=()=>persist(true);

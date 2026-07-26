@@ -23,6 +23,9 @@
   input, and visual add/remove mapping for request object lists.
 - Added response List/Grid components with nested item bindings and generated
   loading, error, empty, refresh, spacing, and grid presentation.
+- Added conditional multi-action Studio flows with confirmation, feedback,
+  success/error navigation, debounce, stale-flow cancellation, and collection
+  load-more actions.
 
 ## 0.3.0 - 2026-07-26
 

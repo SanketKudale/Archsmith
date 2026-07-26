@@ -264,6 +264,49 @@ class UiSchemaValidator {
           }
         }
       }
+      for (var actionIndex = 0;
+          actionIndex < node.actions.length;
+          actionIndex++) {
+        final flowBinding = node.actions[actionIndex];
+        final actionPath = '$path.actions[$actionIndex]';
+        final action = actionsById[flowBinding.actionId];
+        if (action == null) {
+          issues.add(
+            UiValidationIssue(
+              actionPath,
+              'Unknown action ${flowBinding.actionId}.',
+            ),
+          );
+          continue;
+        }
+        if (flowBinding.method == 'watch') {
+          issues.add(
+            UiValidationIssue(
+              actionPath,
+              'Flow steps must invoke an action, not watch it.',
+            ),
+          );
+          continue;
+        }
+        for (final parameter in action.parameters) {
+          if (!flowBinding.arguments.containsKey(parameter.name)) {
+            if (parameter.required) {
+              issues.add(
+                UiValidationIssue(
+                  '$actionPath.arguments',
+                  'Missing required argument ${parameter.name}.',
+                ),
+              );
+            }
+            continue;
+          }
+          validateParameter(
+            parameter,
+            flowBinding.arguments[parameter.name],
+            '$actionPath.arguments.${parameter.name}',
+          );
+        }
+      }
       for (var index = 0; index < node.children.length; index++) {
         visit(node.children[index], '$path.children[$index]');
       }
