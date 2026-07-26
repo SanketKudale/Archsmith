@@ -5,6 +5,7 @@ import 'package:args/command_runner.dart';
 
 import '../utils/archsmith_exception.dart';
 import 'command_context.dart';
+import 'commands/api_command.dart';
 import 'commands/create_command.dart';
 import 'commands/doctor_command.dart';
 import 'commands/generate_command.dart';
@@ -21,6 +22,7 @@ class ArchsmithRunner {
           )
           ..addCommand(CreateCommand(this.context))
           ..addCommand(InitCommand(this.context))
+          ..addCommand(ApiCommand(this.context))
           ..addCommand(GenerateCommand(this.context, 'feature'))
           ..addCommand(GenerateCommand(this.context, 'page'))
           ..addCommand(GenerateCommand(this.context, 'model'))
@@ -28,6 +30,7 @@ class ArchsmithRunner {
           ..addCommand(GenerateCommand(this.context, 'service'))
           ..addCommand(GenerateCommand(this.context, 'usecase'))
           ..addCommand(GenerateCommand(this.context, 'controller'))
+          ..addCommand(GenerateCommand(this.context, 'widget'))
           ..addCommand(DoctorCommand(this.context));
   }
 

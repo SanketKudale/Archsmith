@@ -13,6 +13,15 @@ void main() {
         );
         expect(files.map((file) => file.path), contains('lib/main.dart'));
         expect(files.map((file) => file.path), contains('archsmith.yaml'));
+        expect(files.map((file) => file.path), contains('archsmith_api.yaml'));
+        expect(
+          files.map((file) => file.path),
+          contains('lib/shared/widgets/app_component_defaults.dart'),
+        );
+        expect(
+          files.map((file) => file.path),
+          contains('lib/shared/widgets/common_widgets.dart'),
+        );
       });
     }
   });
@@ -64,5 +73,33 @@ void main() {
         'lib/features/user_profile/presentation/pages/user_profile_page.dart',
       ),
     );
+    expect(
+      files
+          .singleWhere((file) => file.path.endsWith('user_profile_page.dart'))
+          .content,
+      contains('AppScaffold'),
+    );
+  });
+
+  test('widget generation always targets the shared component folder', () {
+    for (final architecture in ArchitectureType.values) {
+      final files = const GenerationEngine().component(
+        ArchsmithConfig(projectName: 'sample_app', architecture: architecture),
+        'widget',
+        'profile-card',
+      );
+      expect(
+        files.map((file) => file.path),
+        contains('lib/shared/widgets/profile_card_widget.dart'),
+      );
+      expect(
+        files
+            .singleWhere(
+              (file) => file.path.endsWith('profile_card_widget.dart'),
+            )
+            .content,
+        contains('class ProfileCardWidget extends StatelessWidget'),
+      );
+    }
   });
 }

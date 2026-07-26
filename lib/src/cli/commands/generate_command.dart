@@ -4,7 +4,7 @@ import 'base_command.dart';
 
 class GenerateCommand extends ArchsmithCommand {
   GenerateCommand(super.context, this.kind) {
-    addSafetyOptions(featureOption: kind != 'feature');
+    addSafetyOptions(featureOption: kind != 'feature' && kind != 'widget');
   }
   final String kind;
   @override
@@ -27,7 +27,10 @@ class GenerateCommand extends ArchsmithCommand {
         config,
         kind,
         argResults!.rest.first,
-        feature: kind != 'feature' && argResults!.wasParsed('feature')
+        feature:
+            kind != 'feature' &&
+                kind != 'widget' &&
+                argResults!.wasParsed('feature')
             ? argResults!['feature'] as String
             : null,
         withTests: options.withTests,
