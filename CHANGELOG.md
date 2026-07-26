@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0 - 2026-07-26
+
+- Added endpoint-example JSON inference and full Clean Architecture API feature
+  generation.
+- Added `archsmith api-common` commands for shared base URLs, headers, and
+  request fields.
+- Added batch endpoint-directory generation with deterministic API summaries.
+- Added generated token refresh, retry, logout, request-ID, sanitized logging,
+  and offline-cache boundaries.
+- Added UI-ready retryable API state and API dependency injection for
+  Riverpod, Provider, BLoC/Cubit, GetX, and framework-only projects.
+- Added manifest-backed GoRouter, AutoRoute, and Navigator route registration.
+
 ## 0.2.0
 
 - Added a reusable shared widget layer with centralized component defaults.

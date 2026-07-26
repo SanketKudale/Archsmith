@@ -44,7 +44,7 @@ class LocalFileSystemService implements FileSystemService {
         entries.add(GenerationEntry(planned.path, GenerationAction.skip));
         continue;
       }
-      if (exists && !options.force) {
+      if (exists && !options.force && !planned.isUpdate) {
         entries.add(
           GenerationEntry(
             planned.path,
