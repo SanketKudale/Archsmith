@@ -222,6 +222,10 @@ Response List and Response Grid components bind directly to list-valued response
 
 The inspector can compose ordered API action flows without Dart edits. Each step has typed request mapping, an `always`, `previousSuccess`, or `previousError` condition, success/error feedback, and success/error navigation. Buttons can add confirmation, debounce, and stale-flow cancellation; response collections can attach a load-more flow for backend pagination.
 
+Studio screens can declare primitive typed route arguments. Generated GoRouter/Navigator helpers require those values, destination page constructors receive them, and request mapping dropdowns expose matching route values such as `$route.accountId`.
+
+Generated API state distinguishes network, cache, and optimistic data. GET requests can fall back to cached responses and keep stale data visible during refresh or network failure; successful mutations clear the shared response cache. Notifiers provide retry, stale-request cancellation, optimistic apply/rollback hooks, and the same state contract for Riverpod, Provider, BLoC/Cubit, GetX, and framework-only `ValueListenable` projects. Add an Offline Banner from the State palette for retry-ready cached/offline presentation.
+
 The editable, versioned screen source is stored in `.archsmith/ui/<screen>.json`. Generate or validate the same source without opening a browser:
 
 ```shell

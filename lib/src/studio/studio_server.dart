@@ -256,6 +256,7 @@ class StudioServer {
             pageName: schema.name,
             routePath: schema.route!,
             feature: schema.feature,
+            routeArguments: schema.routeArguments,
           ),
       ];
       final result = await _fileSystem.apply(

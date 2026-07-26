@@ -30,6 +30,9 @@
   component-tree outline, and validated editable responsive ranges.
 - Added centralized design tokens, localization-key bindings, project image
   selection and preview, plus generated image/button accessibility semantics.
+- Added typed route arguments and request bindings, cache-origin/offline state,
+  mutation cache invalidation, cancellable requests, optimistic rollback hooks,
+  offline banners, and reactive framework-only state presentation.
 
 ## 0.3.0 - 2026-07-26
 

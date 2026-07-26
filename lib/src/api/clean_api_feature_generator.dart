@@ -157,6 +157,10 @@ class CleanApiFeatureGenerator {
           target: _actionTarget(config.stateManagement, operation),
           method: 'execute',
           requestType: '${prefix}RequestEntity',
+          isMutation: endpoint.method != 'GET',
+          supportsOffline: common.cacheEnabled && endpoint.method == 'GET',
+          supportsOptimistic: endpoint.method != 'GET',
+          supportsCancellation: true,
           parameters: _studioParameters(requestClasses),
           state: const {
             'isLoading': 'isLoading',
@@ -164,6 +168,11 @@ class CleanApiFeatureGenerator {
             'error': 'error',
             'isEmpty': 'isEmpty',
             'retry': 'retry',
+            'isRefreshing': 'isRefreshing',
+            'isOffline': 'isOffline',
+            'isOptimistic': 'isOptimistic',
+            'origin': 'origin',
+            'cancel': 'cancel',
           },
           responseFields: _studioFields(responseClasses),
         ),
@@ -343,6 +352,17 @@ class CleanApiFeatureGenerator {
     final path =
         endpoint.path.startsWith('/') ? endpoint.path : '/${endpoint.path}';
     final sendsBody = endpoint.method != 'GET' && endpoint.method != 'DELETE';
+    final isRead = endpoint.method == 'GET';
+    final cacheSuccess = isRead
+        ? "if (result is ApiSuccess<${prefix}ResponseModel>) await cache.write(cacheKey, ApiCachedResponse(statusCode: statusCode, body: response.data, storedAt: DateTime.now()));"
+        : "if (result is ApiSuccess<${prefix}ResponseModel>) await cache.clear();";
+    final dioCacheFallback = isRead
+        ? "      final cached = await cache.read(cacheKey);\n"
+            "      if (cached != null) return ApiResponseHandler.parse(statusCode: cached.statusCode, body: cached.body, decode: ${prefix}ResponseModel.fromJson, origin: ApiDataOrigin.cache);\n"
+        : '';
+    final dioCacheKey = isRead
+        ? "    final cacheKey = '${endpoint.method}:$path:\${request.toJson()}';\n"
+        : '';
     final dioParameters = sendsBody
         ? "        data: <String, Object?>{...ApiConfig.bodyParameters, ...context.bodyParameters, ...request.toJson()},\n"
         : "        queryParameters: <String, Object?>{...ApiConfig.bodyParameters, ...context.bodyParameters, ...request.toJson()},\n";
@@ -366,7 +386,7 @@ class CleanApiFeatureGenerator {
           "  final ApiRequestCoordinator coordinator;\n"
           "  final ApiResponseCache cache;\n\n"
           "  Future<ApiResult<${prefix}ResponseModel>> execute(${prefix}RequestModel request) async {\n"
-          "    final cacheKey = '${endpoint.method}:$path:\${request.toJson()}';\n"
+          "$dioCacheKey"
           "    try {\n"
           "      final response = await coordinator.execute<Response<Object?>>(\n"
           "        headers: <String, String>{...ApiConfig.headers, ...context.headers},\n"
@@ -380,15 +400,13 @@ class CleanApiFeatureGenerator {
           "      final statusCode = response.statusCode ?? 0;\n"
           "      coordinator.logResponse(statusCode, response.data);\n"
           "      final result = ApiResponseHandler.parse(statusCode: statusCode, body: response.data, decode: ${prefix}ResponseModel.fromJson);\n"
-          "      if (result is ApiSuccess<${prefix}ResponseModel>) await cache.write(cacheKey, ApiCachedResponse(statusCode: statusCode, body: response.data, storedAt: DateTime.now()));\n"
+          "      $cacheSuccess\n"
           "      return result;\n"
           "    } on DioException catch (error) {\n"
-          "      final cached = await cache.read(cacheKey);\n"
-          "      if (cached != null) return ApiResponseHandler.parse(statusCode: cached.statusCode, body: cached.body, decode: ${prefix}ResponseModel.fromJson);\n"
+          "$dioCacheFallback"
           "      return ApiResponseHandler.failure(statusCode: error.response?.statusCode, body: error.response?.data, transportType: ApiErrorType.network, fallbackMessage: error.message);\n"
           "    } catch (error) {\n"
-          "      final cached = await cache.read(cacheKey);\n"
-          "      if (cached != null) return ApiResponseHandler.parse(statusCode: cached.statusCode, body: cached.body, decode: ${prefix}ResponseModel.fromJson);\n"
+          "$dioCacheFallback"
           "      return ApiFailure(ApiError(type: ApiErrorType.unknown, message: error.toString()));\n"
           "    }\n"
           "  }\n"
@@ -399,6 +417,16 @@ class CleanApiFeatureGenerator {
         : "Uri.parse('\${ApiConfig.baseUrl}$path').replace(queryParameters: <String, String>{for (final entry in <String, Object?>{...ApiConfig.bodyParameters, ...context.bodyParameters, ...payload.toJson()}.entries) entry.key: entry.value.toString()})";
     final httpBody = sendsBody
         ? "\n        ..body = jsonEncode(<String, Object?>{...ApiConfig.bodyParameters, ...context.bodyParameters, ...payload.toJson()})"
+        : '';
+    final httpCacheSuccess = isRead
+        ? "if (result is ApiSuccess<${prefix}ResponseModel>) await cache.write(cacheKey, ApiCachedResponse(statusCode: response.statusCode, body: body, storedAt: DateTime.now()));"
+        : "if (result is ApiSuccess<${prefix}ResponseModel>) await cache.clear();";
+    final httpCacheFallback = isRead
+        ? "      final cached = await cache.read(cacheKey);\n"
+            "      if (cached != null) return ApiResponseHandler.parse(statusCode: cached.statusCode, body: cached.body, decode: ${prefix}ResponseModel.fromJson, origin: ApiDataOrigin.cache);\n"
+        : '';
+    final httpCacheKey = isRead
+        ? "    final cacheKey = '${endpoint.method}:$path:\${payload.toJson()}';\n"
         : '';
     return "import 'dart:convert';\n"
         "import 'package:http/http.dart' as http;\n"
@@ -421,7 +449,7 @@ class CleanApiFeatureGenerator {
         "  final ApiResponseCache cache;\n\n"
         "  Future<ApiResult<${prefix}ResponseModel>> execute(${prefix}RequestModel payload) async {\n"
         "    final uri = $httpUri;\n"
-        "    final cacheKey = '${endpoint.method}:$path:\${payload.toJson()}';\n"
+        "$httpCacheKey"
         "    try {\n"
         "      final response = await coordinator.execute<http.Response>(\n"
         "        headers: <String, String>{...ApiConfig.headers, ...context.headers},\n"
@@ -436,11 +464,10 @@ class CleanApiFeatureGenerator {
         "      final body = jsonDecode(response.body);\n"
         "      coordinator.logResponse(response.statusCode, body);\n"
         "      final result = ApiResponseHandler.parse(statusCode: response.statusCode, body: body, decode: ${prefix}ResponseModel.fromJson);\n"
-        "      if (result is ApiSuccess<${prefix}ResponseModel>) await cache.write(cacheKey, ApiCachedResponse(statusCode: response.statusCode, body: body, storedAt: DateTime.now()));\n"
+        "      $httpCacheSuccess\n"
         "      return result;\n"
         "    } catch (error) {\n"
-        "      final cached = await cache.read(cacheKey);\n"
-        "      if (cached != null) return ApiResponseHandler.parse(statusCode: cached.statusCode, body: cached.body, decode: ${prefix}ResponseModel.fromJson);\n"
+        "$httpCacheFallback"
         "      return ApiFailure(ApiError(type: ApiErrorType.network, message: error.toString()));\n"
         "    }\n"
         "  }\n"
@@ -473,7 +500,7 @@ class CleanApiFeatureGenerator {
         "  Future<ApiResult<${prefix}ResponseEntity>> ${operation.camelCase}(${prefix}RequestEntity request) async {\n"
         "    final result = await dataSource.execute(${prefix}RequestModel.fromEntity(request));\n"
         "    return switch (result) {\n"
-        "      ApiSuccess(:final data, :final statusCode, :final message) => ApiSuccess(data.toEntity(), statusCode: statusCode, message: message),\n"
+        "      ApiSuccess(:final data, :final statusCode, :final message, :final origin) => ApiSuccess(data.toEntity(), statusCode: statusCode, message: message, origin: origin),\n"
         "      ApiFailure(:final error) => ApiFailure(error),\n"
         "    };\n"
         "  }\n"
@@ -499,8 +526,12 @@ class CleanApiFeatureGenerator {
     return "import '../../../../core/network/generated/api_result.dart';\n"
         "import '../../domain/entities/${operation.snakeCase}_response_entity.dart';\n\n"
         "class ${prefix}State {\n"
-        "  const ${prefix}State({this.isLoading = false, this.data, this.error, this.retryAction});\n"
+        "  const ${prefix}State({this.isLoading = false, this.isRefreshing = false, this.isOffline = false, this.isOptimistic = false, this.origin = ApiDataOrigin.network, this.data, this.error, this.retryAction});\n"
         "  final bool isLoading;\n"
+        "  final bool isRefreshing;\n"
+        "  final bool isOffline;\n"
+        "  final bool isOptimistic;\n"
+        "  final ApiDataOrigin origin;\n"
         "  final ${prefix}ResponseEntity? data;\n"
         "  final ApiError? error;\n"
         "  final Future<void> Function()? retryAction;\n"
@@ -519,18 +550,35 @@ class CleanApiFeatureGenerator {
     final common =
         "import '../../../../core/network/generated/api_result.dart';\n"
         "import '../../domain/entities/${operation.snakeCase}_request_entity.dart';\n"
+        "import '../../domain/entities/${operation.snakeCase}_response_entity.dart';\n"
         "import '../../domain/usecases/${operation.snakeCase}_use_case.dart';\n"
         "import '../states/${operation.snakeCase}_state.dart';\n\n";
     final body = "  ${prefix}UseCase useCase;\n"
         "  ${prefix}RequestEntity? _lastRequest;\n"
+        "  ${prefix}ResponseEntity? _optimisticBackup;\n"
+        "  int _requestGeneration = 0;\n"
         "  Future<void> execute(${prefix}RequestEntity request) async {\n"
+        "    final generation = ++_requestGeneration;\n"
         "    _lastRequest = request;\n"
-        "    setState(${prefix}State(isLoading: true, retryAction: retry));\n"
+        "    final previous = currentState.data;\n"
+        "    final optimisticBackup = _optimisticBackup;\n"
+        "    setState(${prefix}State(isLoading: previous == null, isRefreshing: previous != null, data: previous, origin: currentState.origin, retryAction: retry));\n"
         "    final result = await useCase(request);\n"
+        "    if (generation != _requestGeneration) return;\n"
         "    setState(switch (result) {\n"
-        "      ApiSuccess(:final data) => ${prefix}State(data: data, retryAction: retry),\n"
-        "      ApiFailure(:final error) => ${prefix}State(error: error, retryAction: retry),\n"
+        "      ApiSuccess(:final data, :final origin) => ${prefix}State(data: data, origin: origin, isOffline: origin == ApiDataOrigin.cache, retryAction: retry),\n"
+        "      ApiFailure(:final error) => ${prefix}State(data: optimisticBackup ?? previous, origin: currentState.origin, error: error, isOffline: error.type == ApiErrorType.network, retryAction: retry),\n"
         "    });\n"
+        "    _optimisticBackup = null;\n"
+        "  }\n"
+        "  void cancel() => _requestGeneration++;\n"
+        "  void applyOptimistic(${prefix}ResponseEntity data) {\n"
+        "    _optimisticBackup = currentState.data;\n"
+        "    setState(${prefix}State(data: data, origin: ApiDataOrigin.optimistic, isOptimistic: true, retryAction: retry));\n"
+        "  }\n"
+        "  void rollbackOptimistic() {\n"
+        "    setState(${prefix}State(data: _optimisticBackup, retryAction: retry));\n"
+        "    _optimisticBackup = null;\n"
         "  }\n"
         "  Future<void> retry() async {\n"
         "    final request = _lastRequest;\n"
@@ -542,6 +590,7 @@ class CleanApiFeatureGenerator {
             "$common"
             "class ${prefix}Notifier extends StateNotifier<${prefix}State> {\n"
             "  ${prefix}Notifier(this.useCase) : super(const ${prefix}State());\n"
+            "  ${prefix}State get currentState => state;\n"
             "$body"
             "  void setState(${prefix}State value) => state = value;\n"
             "}\n",
@@ -551,6 +600,7 @@ class CleanApiFeatureGenerator {
             "class ${prefix}Notifier extends ChangeNotifier {\n"
             "  ${prefix}Notifier(this.useCase);\n"
             "  ${prefix}State state = const ${prefix}State();\n"
+            "  ${prefix}State get currentState => state;\n"
             "$body"
             "  void setState(${prefix}State value) { state = value; notifyListeners(); }\n"
             "}\n",
@@ -559,6 +609,7 @@ class CleanApiFeatureGenerator {
             "$common"
             "class ${prefix}Cubit extends Cubit<${prefix}State> {\n"
             "  ${prefix}Cubit(this.useCase) : super(const ${prefix}State());\n"
+            "  ${prefix}State get currentState => state;\n"
             "$body"
             "  void setState(${prefix}State value) => emit(value);\n"
             "}\n",
@@ -567,6 +618,7 @@ class CleanApiFeatureGenerator {
           "class ${prefix}Controller extends GetxController {\n"
           "  ${prefix}Controller(this.useCase);\n"
           "  final state = const ${prefix}State().obs;\n"
+          "  ${prefix}State get currentState => state.value;\n"
           "$body"
           "  void setState(${prefix}State value) => state.value = value;\n"
           "}\n",
@@ -574,6 +626,7 @@ class CleanApiFeatureGenerator {
           "$common"
           "class ${prefix}Notifier extends ValueNotifier<${prefix}State> {\n"
           "  ${prefix}Notifier(this.useCase) : super(const ${prefix}State());\n"
+          "  ${prefix}State get currentState => value;\n"
           "$body"
           "  void setState(${prefix}State state) => value = state;\n"
           "}\n",

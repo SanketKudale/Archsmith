@@ -88,6 +88,7 @@ class UiCommand extends ArchsmithCommand {
           pageName: schema.name,
           routePath: schema.route!,
           feature: schema.feature,
+          routeArguments: schema.routeArguments,
         ),
     ];
     final files = generated.where((file) {

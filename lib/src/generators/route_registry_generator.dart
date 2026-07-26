@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import '../configuration/archsmith_config.dart';
 import '../models/generation.dart';
 import '../models/options.dart';
+import '../studio/ui_schema.dart';
 import '../utils/naming_utils.dart';
 
 /// Maintains Archsmith-owned route metadata and generated navigation helpers.
@@ -18,6 +19,7 @@ class RouteRegistryGenerator {
     required String pageName,
     required String routePath,
     String? feature,
+    List<UiRouteArgument> routeArguments = const [],
   }) {
     if (!routePath.startsWith('/')) {
       throw const FormatException('Route paths must start with /.');
@@ -25,6 +27,11 @@ class RouteRegistryGenerator {
     if (config.router == RouterType.none) {
       throw const FormatException(
         'Route registration requires a configured router.',
+      );
+    }
+    if (config.router == RouterType.autoRoute && routeArguments.isNotEmpty) {
+      throw const FormatException(
+        'Typed Studio route arguments currently require GoRouter or Navigator.',
       );
     }
     final page = names(pageName);
@@ -43,6 +50,7 @@ class RouteRegistryGenerator {
       name: page.camelCase,
       className: '${page.pascalCase}Page',
       importPath: importPath,
+      arguments: routeArguments,
     );
     final sorted = routes.values.toList()
       ..sort((left, right) => left.path.compareTo(right.path));
@@ -122,15 +130,17 @@ class RouteRegistryGenerator {
               "  static const ${names(route.name).camelCase} = '${route.path}';",
         )
         .join('\n');
+    final argumentClasses = routes
+        .where((route) => route.arguments.isNotEmpty)
+        .map(_argumentClass)
+        .join('\n\n');
     final helpers = routes
         .map(
           (route) => switch (config.router) {
-            RouterType.goRouter =>
-              "  void goTo${names(route.name).pascalCase}() => go(AppRoutes.${names(route.name).camelCase});",
+            RouterType.goRouter => _goRouterHelper(route),
             RouterType.autoRoute =>
               "  void goTo${names(route.name).pascalCase}() => router.pushNamed(AppRoutes.${names(route.name).camelCase});",
-            RouterType.navigator =>
-              "  Future<T?> goTo${names(route.name).pascalCase}<T>() => Navigator.of(this).pushNamed<T>(AppRoutes.${names(route.name).camelCase});",
+            RouterType.navigator => _navigatorHelper(route),
             RouterType.none => '',
           },
         )
@@ -138,10 +148,8 @@ class RouteRegistryGenerator {
     final routeEntries = routes
         .map(
           (route) => switch (config.router) {
-            RouterType.goRouter =>
-              "  GoRoute(path: AppRoutes.${names(route.name).camelCase}, builder: (_, __) => const ${route.className}()),",
-            RouterType.navigator =>
-              "  AppRoutes.${names(route.name).camelCase}: (_) => const ${route.className}(),",
+            RouterType.goRouter => _goRouterEntry(route),
+            RouterType.navigator => _navigatorEntry(route),
             RouterType.autoRoute || RouterType.none => '',
           },
         )
@@ -165,10 +173,95 @@ class RouteRegistryGenerator {
     return "import 'package:flutter/material.dart';\n"
         "$routerImport\n"
         "$imports\n\n"
+        "$argumentClasses\n\n"
         "abstract final class AppRoutes {\n$constants\n}\n\n"
         "$registry\n\n"
         "extension GeneratedNavigation on BuildContext {\n$helpers\n}\n";
   }
+
+  String _argumentClass(_RouteEntry route) {
+    final className = '${names(route.name).pascalCase}RouteArgs';
+    final parameters = route.arguments
+        .map(
+          (argument) =>
+              '    ${argument.required ? 'required ' : ''}this.${argument.name},',
+        )
+        .join('\n');
+    final fields = route.arguments
+        .map(
+          (argument) =>
+              '  final ${argument.type}${argument.required ? '' : '?'} ${argument.name};',
+        )
+        .join('\n');
+    return 'class $className {\n'
+        '  const $className({\n$parameters\n  });\n'
+        '$fields\n'
+        '}';
+  }
+
+  String _goRouterHelper(_RouteEntry route) {
+    final page = names(route.name);
+    if (route.arguments.isEmpty) {
+      return '  void goTo${page.pascalCase}() => '
+          'go(AppRoutes.${page.camelCase});';
+    }
+    final parameters = _typedParameters(route);
+    final values = _argumentValues(route);
+    return '  void goTo${page.pascalCase}({$parameters}) => '
+        'go(AppRoutes.${page.camelCase}, '
+        'extra: ${page.pascalCase}RouteArgs($values));';
+  }
+
+  String _navigatorHelper(_RouteEntry route) {
+    final page = names(route.name);
+    if (route.arguments.isEmpty) {
+      return '  Future<T?> goTo${page.pascalCase}<T>() => '
+          'Navigator.of(this).pushNamed<T>(AppRoutes.${page.camelCase});';
+    }
+    return '  Future<T?> goTo${page.pascalCase}<T>({'
+        '${_typedParameters(route)}}) => Navigator.of(this).pushNamed<T>('
+        'AppRoutes.${page.camelCase}, arguments: '
+        '${page.pascalCase}RouteArgs(${_argumentValues(route)}));';
+  }
+
+  String _goRouterEntry(_RouteEntry route) {
+    final page = names(route.name);
+    if (route.arguments.isEmpty) {
+      return '  GoRoute(path: AppRoutes.${page.camelCase}, '
+          'builder: (_, __) => const ${route.className}()),';
+    }
+    return '  GoRoute(path: AppRoutes.${page.camelCase}, '
+        'builder: (_, state) { final args = state.extra! as '
+        '${page.pascalCase}RouteArgs; return ${route.className}('
+        '${_pageArgumentValues(route)}); }),';
+  }
+
+  String _navigatorEntry(_RouteEntry route) {
+    final page = names(route.name);
+    if (route.arguments.isEmpty) {
+      return '  AppRoutes.${page.camelCase}: (_) => '
+          'const ${route.className}(),';
+    }
+    return '  AppRoutes.${page.camelCase}: (context) { final args = '
+        'ModalRoute.of(context)!.settings.arguments! as '
+        '${page.pascalCase}RouteArgs; return ${route.className}('
+        '${_pageArgumentValues(route)}); },';
+  }
+
+  String _typedParameters(_RouteEntry route) => route.arguments
+      .map(
+        (argument) => '${argument.required ? 'required ' : ''}'
+            '${argument.type}${argument.required ? '' : '?'} ${argument.name}',
+      )
+      .join(', ');
+
+  String _argumentValues(_RouteEntry route) => route.arguments
+      .map((argument) => '${argument.name}: ${argument.name}')
+      .join(', ');
+
+  String _pageArgumentValues(_RouteEntry route) => route.arguments
+      .map((argument) => '${argument.name}: args.${argument.name}')
+      .join(', ');
 
   String _wireGoRouter(String source) {
     var result = source;
@@ -247,6 +340,7 @@ class _RouteEntry {
     required this.name,
     required this.className,
     required this.importPath,
+    this.arguments = const [],
   });
 
   factory _RouteEntry.fromJson(Map<Object?, Object?> source) => _RouteEntry(
@@ -254,18 +348,28 @@ class _RouteEntry {
         name: source['name'].toString(),
         className: source['class_name'].toString(),
         importPath: source['import'].toString(),
+        arguments: (source['arguments'] as List? ?? const [])
+            .map(
+              (value) => UiRouteArgument.fromJson(
+                Map<String, Object?>.from(value as Map),
+              ),
+            )
+            .toList(growable: false),
       );
 
   final String path;
   final String name;
   final String className;
   final String importPath;
+  final List<UiRouteArgument> arguments;
 
   Map<String, Object?> toJson() => {
         'path': path,
         'name': name,
         'class_name': className,
         'import': importPath,
+        if (arguments.isNotEmpty)
+          'arguments': arguments.map((argument) => argument.toJson()).toList(),
       };
 }
 

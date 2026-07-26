@@ -351,6 +351,22 @@ const _components = <StudioComponentDescriptor>[
     acceptsChildren: false,
   ),
   StudioComponentDescriptor(
+    type: 'offlineBanner',
+    label: 'Offline Banner',
+    category: 'State',
+    acceptsChildren: false,
+    defaults: {
+      'message': 'You are offline. Showing saved data.',
+      'showRetry': true,
+      'retryLabel': 'Retry',
+    },
+    properties: [
+      StudioPropertyDescriptor('message', 'localizedString'),
+      StudioPropertyDescriptor('showRetry', 'boolean'),
+      StudioPropertyDescriptor('retryLabel', 'localizedString'),
+    ],
+  ),
+  StudioComponentDescriptor(
     type: 'stateText',
     label: 'State Text',
     category: 'State',

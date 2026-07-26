@@ -150,8 +150,7 @@ void main() {
     expect(
       generated,
       contains(
-        'ref.watch(accountDeactivateProvider)'
-        '.data?.status.description',
+        'state.data?.status.description',
       ),
     );
     expect(
@@ -245,6 +244,14 @@ void main() {
                 method: 'watch',
               ),
             ),
+            UiNode(
+              id: 'offline',
+              type: 'offlineBanner',
+              action: UiActionBinding(
+                actionId: 'items.load',
+                method: 'watch',
+              ),
+            ),
           ],
         ),
       );
@@ -260,12 +267,14 @@ void main() {
           .singleWhere((file) => file.path.endsWith('.archsmith.dart'))
           .content;
       if (manager == StateManagementType.none) {
-        expect(generated, contains('const SizedBox.shrink()'));
-      } else {
-        expect(generated, contains('ListView.separated'));
-        expect(generated, contains('RefreshIndicator'));
-        expect(generated, contains('item.message.toString()'));
+        expect(generated, contains('ValueListenable<LoadState>'));
+        expect(generated, contains('ValueListenableBuilder<LoadState>'));
       }
+      expect(generated, contains('ListView.separated'));
+      expect(generated, contains('RefreshIndicator'));
+      expect(generated, contains('item.message.toString()'));
+      expect(generated, contains('MaterialBanner'));
+      expect(generated, contains('state.isOffline'));
       final variant = Directory(p.join(directory.path, manager.value));
       for (final planned in files) {
         final file = File(p.join(variant.path, planned.path));
@@ -391,6 +400,7 @@ void main() {
         target: 'validateProvider',
         method: 'execute',
         requestType: 'ValidateRequestEntity',
+        supportsCancellation: true,
         parameters: [StudioActionParameter(name: 'id', type: 'String')],
       ),
       StudioActionDescriptor(
@@ -401,6 +411,8 @@ void main() {
         target: 'submitProvider',
         method: 'execute',
         requestType: 'SubmitRequestEntity',
+        supportsCancellation: true,
+        supportsOptimistic: true,
         parameters: [StudioActionParameter(name: 'id', type: 'String')],
       ),
     ];
@@ -429,6 +441,7 @@ void main() {
                 actionId: 'checkout.submit',
                 arguments: {'id': '42'},
                 runWhen: 'previousSuccess',
+                optimistic: true,
                 errorMessage: 'Could not submit',
                 onErrorRoute: '/failed',
               ),
@@ -451,6 +464,8 @@ void main() {
     expect(source, contains('Duration(milliseconds: 250)'));
     expect(source, contains('flowGeneration != _checkoutButtonFlowGeneration'));
     expect(source, contains('showDialog<bool>'));
+    expect(source, contains('validateProvider.notifier).cancel()'));
+    expect(source, contains('applyOptimistic(optimisticData)'));
     expect(source, contains('if (previousSucceeded)'));
     expect(source, contains("_showActionMessage('Validated')"));
     expect(source, contains("Navigator.of(context).pushNamed('/failed')"));
@@ -546,5 +561,51 @@ void main() {
         'lib/shared/localization/archsmith_localizations.dart',
       ]),
     );
+  });
+
+  test('binds typed route arguments into generated API requests', () {
+    const action = StudioActionDescriptor(
+      id: 'accounts.load',
+      feature: 'accounts',
+      operation: 'load',
+      stateManagement: 'riverpod',
+      target: 'loadProvider',
+      method: 'execute',
+      requestType: 'LoadRequestEntity',
+      parameters: [
+        StudioActionParameter(name: 'accountId', type: 'String'),
+      ],
+    );
+    const schema = UiScreenSchema(
+      name: 'account',
+      route: '/account',
+      routeArguments: [
+        UiRouteArgument(name: 'accountId', type: 'String'),
+      ],
+      root: UiNode(
+        id: 'load',
+        type: 'appButton',
+        action: UiActionBinding(
+          actionId: 'accounts.load',
+          arguments: {'accountId': r'$route.accountId'},
+        ),
+      ),
+    );
+
+    final files = const UiCodeGenerator().generate(
+      config: ArchsmithConfig(projectName: 'sample_app'),
+      schema: schema,
+      actions: const [action],
+    );
+    final generated = files
+        .singleWhere((file) => file.path.endsWith('.archsmith.dart'))
+        .content;
+    final extension =
+        files.singleWhere((file) => file.path.endsWith('_page.dart')).content;
+
+    expect(generated, contains('required this.accountId'));
+    expect(generated, contains('final String accountId'));
+    expect(generated, contains('accountId: widget.accountId'));
+    expect(extension, contains('accountId: accountId'));
   });
 }

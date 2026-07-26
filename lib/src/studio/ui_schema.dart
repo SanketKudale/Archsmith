@@ -13,6 +13,7 @@ class UiScreenSchema {
     this.route,
     this.feature,
     this.breakpoints = defaultUiBreakpoints,
+    this.routeArguments = const [],
   });
 
   factory UiScreenSchema.fromJson(Map<String, Object?> json) {
@@ -47,6 +48,11 @@ class UiScreenSchema {
       route: route as String?,
       feature: json['feature']?.toString(),
       breakpoints: breakpoints,
+      routeArguments: json['route_arguments'] == null
+          ? const []
+          : _objectList(json['route_arguments'], 'route_arguments')
+              .map(UiRouteArgument.fromJson)
+              .toList(growable: false),
       root: UiNode.fromJson(Map<String, Object?>.from(rawRoot)),
     );
   }
@@ -56,6 +62,7 @@ class UiScreenSchema {
   final String? route;
   final String? feature;
   final List<UiBreakpoint> breakpoints;
+  final List<UiRouteArgument> routeArguments;
   final UiNode root;
 
   Map<String, Object?> toJson() => {
@@ -64,7 +71,45 @@ class UiScreenSchema {
         if (route != null) 'route': route,
         if (feature != null) 'feature': feature,
         'breakpoints': breakpoints.map((item) => item.toJson()).toList(),
+        if (routeArguments.isNotEmpty)
+          'route_arguments':
+              routeArguments.map((item) => item.toJson()).toList(),
         'root': root.toJson(),
+      };
+}
+
+/// A strongly typed value required to open a generated screen.
+class UiRouteArgument {
+  const UiRouteArgument({
+    required this.name,
+    required this.type,
+    this.required = true,
+  });
+
+  factory UiRouteArgument.fromJson(Map<String, Object?> json) {
+    final name = json['name']?.toString().trim() ?? '';
+    final type = json['type']?.toString().trim() ?? '';
+    if (name.isEmpty || !RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(name)) {
+      throw const FormatException('Route argument name must be a Dart name.');
+    }
+    if (!const {'String', 'int', 'double', 'num', 'bool'}.contains(type)) {
+      throw FormatException('Unsupported route argument type: $type.');
+    }
+    return UiRouteArgument(
+      name: name,
+      type: type,
+      required: json['required'] as bool? ?? true,
+    );
+  }
+
+  final String name;
+  final String type;
+  final bool required;
+
+  Map<String, Object?> toJson() => {
+        'name': name,
+        'type': type,
+        'required': required,
       };
 }
 
@@ -182,6 +227,7 @@ class UiActionBinding {
     this.runWhen = 'always',
     this.successMessage,
     this.errorMessage,
+    this.optimistic = false,
   });
 
   factory UiActionBinding.fromJson(Map<String, Object?> json) {
@@ -213,6 +259,7 @@ class UiActionBinding {
       runWhen: runWhen,
       successMessage: json['success_message']?.toString(),
       errorMessage: json['error_message']?.toString(),
+      optimistic: json['optimistic'] as bool? ?? false,
     );
   }
 
@@ -224,6 +271,7 @@ class UiActionBinding {
   final String runWhen;
   final String? successMessage;
   final String? errorMessage;
+  final bool optimistic;
 
   Map<String, Object?> toJson() => {
         'action_id': actionId,
@@ -234,6 +282,7 @@ class UiActionBinding {
         if (runWhen != 'always') 'run_when': runWhen,
         if (successMessage != null) 'success_message': successMessage,
         if (errorMessage != null) 'error_message': errorMessage,
+        if (optimistic) 'optimistic': true,
       };
 }
 

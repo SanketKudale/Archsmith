@@ -28,6 +28,10 @@ void main() {
       pageName: 'account_deactivate',
       routePath: '/account-deactivate',
       feature: 'accounts',
+      routeArguments: const [
+        UiRouteArgument(name: 'accountId', type: 'String'),
+        UiRouteArgument(name: 'reasonCode', type: 'int', required: false),
+      ],
     );
     final result = await const LocalFileSystemService().apply(
       directory.path,
@@ -56,6 +60,14 @@ void main() {
     ).readAsStringSync();
     expect(registry, contains('goToAccountDeactivate'));
     expect(registry, contains('AccountDeactivatePage'));
+    expect(registry, contains('class AccountDeactivateRouteArgs'));
+    expect(registry, contains('required String accountId'));
+    expect(registry, contains('extra: AccountDeactivateRouteArgs'));
+    expect(registry, contains('accountId: args.accountId'));
+    expect(
+      (route['arguments'] as List).length,
+      2,
+    );
   });
 
   test('rejects duplicate paths owned by another page', () async {

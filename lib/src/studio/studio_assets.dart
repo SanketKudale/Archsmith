@@ -65,6 +65,7 @@ abstract final class StudioAssets {
         <label>Error route<input id="errorRoute" placeholder="/try-again"></label>
         <label>Success feedback<input id="successMessage" placeholder="Saved successfully"></label>
         <label>Error feedback<input id="errorMessage" placeholder="Could not save"></label>
+        <label class="override"><input id="optimisticAction" type="checkbox"> Show optimistic pending state</label>
         <hr>
         <h2>Action flow</h2>
         <div id="flowSteps"></div>
@@ -75,6 +76,9 @@ abstract final class StudioAssets {
       <hr>
       <h2>Responsive ranges</h2>
       <div id="breakpointEditor"></div>
+      <label>Typed route arguments
+        <textarea id="routeArguments" rows="4" placeholder='[{"name":"accountId","type":"String","required":true}]'></textarea>
+      </label>
       <hr>
       <h2>Shared design tokens</h2>
       <textarea id="designTokens" rows="10" aria-label="Design token JSON"></textarea>
@@ -206,7 +210,7 @@ function redo(){
   if(!future.length)return;history.push(JSON.stringify(schema));schema=JSON.parse(future.pop());selected=null;syncScreenFields();renderBreakpoints();render();updateHistoryButtons();
 }
 function updateHistoryButtons(){$('undo').disabled=!history.length;$('redo').disabled=!future.length}
-function syncScreenFields(){$('screenName').value=schema.name;$('featureName').value=schema.feature||schema.name;$('route').value=schema.route||''}
+function syncScreenFields(){$('screenName').value=schema.name;$('featureName').value=schema.feature||schema.name;$('route').value=schema.route||'';$('routeArguments').value=JSON.stringify(schema.route_arguments||[],null,2)}
 function freshSchema(name='home'){
   return {version:1,name,feature:name,route:`/${name.replaceAll('_','-')}`,breakpoints:JSON.parse(JSON.stringify(bootstrap.breakpoints)),root:{id:'page',type:'appScaffold',properties:{title:name.replaceAll('_',' ')},children:[]}};
 }
@@ -254,6 +258,7 @@ function renderNode(node){
   else if(node.type==='appButton')content.innerHTML=`<div class="preview-button">${escapeHtml(props.label||'Continue')}</div>`;
   else if(node.type==='imageAsset')content.innerHTML=props.asset?`<img src="/project-asset/${encodeURIComponent(props.asset)}" alt="${props.decorative?'':escapeHtml(props.semanticLabel||'')}" style="max-width:100%;height:auto">`:'<div class="preview-field">Choose an image asset</div>';
   else if(node.type==='appLoadingIndicator')content.innerHTML='<div class="preview-text">◌ Loading</div>';
+  else if(node.type==='offlineBanner')content.innerHTML=`<div class="preview-card">⚠ ${escapeHtml(props.message||'You are offline. Showing saved data.')}</div>`;
   else if(node.type==='stateList'||node.type==='stateGrid'){
     content.className=node.type==='stateGrid'?'preview-row':'preview-column';
     for(let index=0;index<3;index++)content.insertAdjacentHTML('beforeend',`<div class="preview-card">Response item ${index+1}</div>`);
@@ -338,6 +343,8 @@ function renderInspector(){
   $('errorRoute').value=selected.action?.on_error_route||'';
   $('successMessage').value=selected.action?.success_message||'';
   $('errorMessage').value=selected.action?.error_message||'';
+  $('optimisticAction').checked=selected.action?.optimistic===true;
+  $('optimisticAction').disabled=!bootstrap.actions.find(action=>action.id===selected.action?.action_id)?.supports_optimistic;
   renderFlowSteps();
 }
 function renderActions(filter=''){
@@ -371,6 +378,7 @@ function renderFlowSteps(){
     [['always','Always'],['previousSuccess','After previous success'],['previousError','After previous error']].forEach(([value,label])=>condition.add(new Option(label,value)));
     condition.value=binding.run_when||'always';condition.onchange=()=>{checkpoint();binding.run_when=condition.value};
     const conditionLabel=document.createElement('label');conditionLabel.textContent='Run condition';conditionLabel.appendChild(condition);step.appendChild(conditionLabel);
+    const optimistic=document.createElement('input');optimistic.type='checkbox';optimistic.checked=binding.optimistic===true;optimistic.disabled=!bootstrap.actions.find(item=>item.id===binding.action_id)?.supports_optimistic;optimistic.onchange=()=>{checkpoint();binding.optimistic=optimistic.checked};const optimisticLabel=document.createElement('label');optimisticLabel.className='override';optimisticLabel.appendChild(optimistic);optimisticLabel.append(' Optimistic pending state');step.appendChild(optimisticLabel);
     const feedback=[['success_message','Success feedback'],['error_message','Error feedback'],['on_success_route','Success route'],['on_error_route','Error route']];
     feedback.forEach(([key,title])=>{const label=document.createElement('label');label.textContent=title;const input=document.createElement('input');input.value=binding[key]||'';input.onchange=()=>{checkpoint();binding[key]=input.value||undefined};label.appendChild(input);step.appendChild(label)});
     const action=bootstrap.actions.find(item=>item.id===binding.action_id),fields=allNodes(schema.root).filter(node=>node.type==='appTextField');
@@ -410,12 +418,13 @@ function renderParameter(parameter,current,host,setValue,fields){
     host.appendChild(group);return;
   }
   const label=document.createElement('label');label.textContent=`${parameter.name} · ${parameter.type}`;
-  const sourceId=fieldSource(current),source=document.createElement('select');source.add(new Option('Literal value',''));
+  const sourceId=fieldSource(current),routeId=routeSource(current),source=document.createElement('select');source.add(new Option('Literal value',''));
   if(isPrimitive(parameter.type))fields.forEach(field=>source.add(new Option(`Field: ${field.properties?.label||field.id}`,field.id)));
-  source.value=sourceId||'';
-  const input=document.createElement('input');input.value=sourceId?'':current??'';
-  input.placeholder=`Literal ${parameter.type} value`;input.hidden=!!sourceId;
-  source.onchange=()=>{checkpoint();input.hidden=!!source.value;setValue(source.value?`$${source.value}.value`:typedValue(input.value,parameter.type))};
+  (schema.route_arguments||[]).filter(argument=>argument.type===parameter.type).forEach(argument=>source.add(new Option(`Route: ${argument.name}`,`route:${argument.name}`)));
+  source.value=routeId?`route:${routeId}`:sourceId||'';
+  const input=document.createElement('input');input.value=sourceId||routeId?'':current??'';
+  input.placeholder=`Literal ${parameter.type} value`;input.hidden=!!sourceId||!!routeId;
+  source.onchange=()=>{checkpoint();input.hidden=!!source.value;setValue(source.value.startsWith('route:')?`$route.${source.value.slice(6)}`:source.value?`$${source.value}.value`:typedValue(input.value,parameter.type))};
   input.onchange=()=>{checkpoint();setValue(typedValue(input.value,parameter.type))};
   label.appendChild(source);label.appendChild(input);host.appendChild(label);
 }
@@ -447,6 +456,7 @@ function tokenOptions(property){
   return Object.keys(tokens[group]||{}).map(key=>`$token.${referenceGroup}.${key}`);
 }
 function fieldSource(value){const match=typeof value==='string'&&value.match(/^\$(.+)\.value$/);return match?match[1]:null}
+function routeSource(value){const match=typeof value==='string'&&value.match(/^\$route\.(.+)$/);return match?match[1]:null}
 function normalize(value){return `${value||''}`.toLowerCase().replace(/[^a-z0-9]/g,'')}
 function defaultArguments(action){
   const fields=allNodes(schema.root).filter(node=>node.type==='appTextField'), result={};
@@ -457,6 +467,8 @@ function defaultParameter(parameter,fields,single=false){
   if(parameter.is_list)return [];
   if(parameter.children?.length)return defaultObject(parameter.children,fields);
   const parameterName=normalize(parameter.name);
+  const routeArgument=(schema.route_arguments||[]).find(argument=>normalize(argument.name)===parameterName&&argument.type===parameter.type);
+  if(routeArgument)return `$route.${routeArgument.name}`;
   const exact=fields.find(field=>[field.id,field.properties?.label].some(value=>normalize(value)===parameterName));
   const related=fields.find(field=>[field.id,field.properties?.label].some(value=>parameterName.endsWith(normalize(value))||normalize(value).endsWith(parameterName)));
   const field=exact||related||(single&&fields.length===1?fields[0]:null);
@@ -482,6 +494,7 @@ function bindControls(){
   });
   const updateScreen=()=>{checkpoint();render()};
   $('screenName').onchange=updateScreen;$('featureName').onchange=updateScreen;$('route').onchange=updateScreen;
+  $('routeArguments').onchange=e=>{try{const value=JSON.parse(e.target.value||'[]');if(!Array.isArray(value))throw new Error('Route arguments must be a JSON array');checkpoint();schema.route_arguments=value;setStatus('Route arguments updated')}catch(error){setStatus(error.message,true)}};
   $('screens').onchange=async e=>{
     if(!e.target.value)return;
     try{schema=await request(`/api/screens/${encodeURIComponent(e.target.value)}`);selected=null;history=[];future=[];syncScreenFields();renderBreakpoints();render();updateHistoryButtons()}catch(error){setStatus(error.message,true)}
@@ -493,11 +506,12 @@ function bindControls(){
   $('nodeId').onchange=e=>{checkpoint();selected.id=e.target.value;render()};
   $('breakpointOverride').onchange=renderInspector;
   $('actionSearch').oninput=e=>renderActions(e.target.value);
-  $('actionSelect').onchange=e=>{checkpoint();const watches=['appLoadingIndicator','stateText','stateList','stateGrid'].includes(selected.type),action=bootstrap.actions.find(item=>item.id===e.target.value);selected.action=action?{action_id:action.id,method:watches?'watch':'execute',arguments:watches?{}:defaultArguments(action)}:undefined;renderInspector()};
+  $('actionSelect').onchange=e=>{checkpoint();const watches=['appLoadingIndicator','stateText','stateList','stateGrid','offlineBanner'].includes(selected.type),action=bootstrap.actions.find(item=>item.id===e.target.value);selected.action=action?{action_id:action.id,method:watches?'watch':'execute',arguments:watches?{}:defaultArguments(action)}:undefined;renderInspector()};
   $('successRoute').onchange=e=>{if(selected.action){checkpoint();selected.action.on_success_route=e.target.value||undefined}};
   $('errorRoute').onchange=e=>{if(selected.action){checkpoint();selected.action.on_error_route=e.target.value||undefined}};
   $('successMessage').onchange=e=>{if(selected.action){checkpoint();selected.action.success_message=e.target.value||undefined}};
   $('errorMessage').onchange=e=>{if(selected.action){checkpoint();selected.action.error_message=e.target.value||undefined}};
+  $('optimisticAction').onchange=e=>{if(selected.action){checkpoint();selected.action.optimistic=e.target.checked}};
   $('addFlowStep').onclick=()=>{const action=bootstrap.actions[0];if(!action)return setStatus('Generate an API action first.',true);checkpoint();selected.actions||=[];selected.actions.push({action_id:action.id,method:'execute',arguments:defaultArguments(action),run_when:'previousSuccess'});renderInspector()};
   $('undo').onclick=undo;$('redo').onclick=redo;$('duplicate').onclick=duplicateSelected;
   $('remove').onclick=removeSelected;

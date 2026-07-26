@@ -122,6 +122,8 @@ void main() {
         .content;
     expect(state, contains('bool get isEmpty'));
     expect(state, contains('Future<void> retry()'));
+    expect(state, contains('final bool isOffline'));
+    expect(state, contains('final bool isOptimistic'));
     final dataSource = files
         .singleWhere(
           (file) =>
@@ -129,7 +131,41 @@ void main() {
         )
         .content;
     expect(dataSource, contains('coordinator.execute'));
+    expect(dataSource, contains('await cache.clear()'));
+    expect(dataSource, isNot(contains('cache.read(cacheKey)')));
+    expect(action['is_mutation'], isTrue);
+    expect(action['supports_optimistic'], isTrue);
+  });
+
+  test('GET endpoints mark cached success origin and preserve stale data', () {
+    final endpoint = const JsonApiEndpointReader().fromMap(
+      {
+        ...endpointMap,
+        'url': 'accounts',
+      },
+      method: 'GET',
+    );
+    final files = const CleanApiFeatureGenerator().generate(
+      config: ArchsmithConfig(projectName: 'sample_app'),
+      common: const ApiCommonConfig(
+        baseUrl: 'https://api.example.com',
+        cacheEnabled: true,
+      ),
+      endpoint: endpoint,
+      feature: 'accounts',
+    );
+    final dataSource = files
+        .singleWhere((file) => file.path.endsWith('remote_data_source.dart'))
+        .content;
+    final notifier = files
+        .singleWhere((file) => file.path.endsWith('_notifier.dart'))
+        .content;
+
     expect(dataSource, contains('cache.read(cacheKey)'));
+    expect(dataSource, contains('origin: ApiDataOrigin.cache'));
+    expect(notifier, contains('isOffline: error.type == ApiErrorType.network'));
+    expect(notifier, contains('void applyOptimistic'));
+    expect(notifier, contains('void cancel()'));
   });
 
   test('generates dependency injection for every state manager', () {

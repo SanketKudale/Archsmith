@@ -278,4 +278,21 @@ void main() {
       contains('Breakpoint ranges cannot overlap.'),
     );
   });
+
+  test('round-trips typed route arguments', () {
+    const schema = UiScreenSchema(
+      name: 'account',
+      route: '/account',
+      routeArguments: [
+        UiRouteArgument(name: 'accountId', type: 'String'),
+        UiRouteArgument(name: 'tab', type: 'int', required: false),
+      ],
+      root: UiNode(id: 'root', type: 'column'),
+    );
+
+    final restored = UiScreenSchema.fromJson(schema.toJson());
+
+    expect(restored.routeArguments.first.name, 'accountId');
+    expect(restored.routeArguments.last.required, isFalse);
+  });
 }

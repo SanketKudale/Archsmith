@@ -31,6 +31,27 @@ class UiSchemaValidator {
     final issues = <UiValidationIssue>[];
     final ids = <String>{};
     final breakpointNames = <String>{};
+    final routeArgumentNames = <String>{};
+    for (final argument in schema.routeArguments) {
+      if (!routeArgumentNames.add(argument.name)) {
+        issues.add(
+          UiValidationIssue(
+            'route_arguments.${argument.name}',
+            'Route argument names must be unique.',
+          ),
+        );
+      }
+      if (!RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(argument.name) ||
+          !const {'String', 'int', 'double', 'num', 'bool'}
+              .contains(argument.type)) {
+        issues.add(
+          UiValidationIssue(
+            'route_arguments.${argument.name}',
+            'Route arguments require supported Dart names and primitive types.',
+          ),
+        );
+      }
+    }
     for (final breakpoint in schema.breakpoints) {
       if (!breakpointNames.add(breakpoint.name)) {
         issues.add(
@@ -160,6 +181,29 @@ class UiSchemaValidator {
             child,
             object[child.name],
             '$path.${child.name}',
+          );
+        }
+        return;
+      }
+      final routeArgumentName = _routeReference(value);
+      if (routeArgumentName != null) {
+        final matches = schema.routeArguments.where(
+          (argument) => argument.name == routeArgumentName,
+        );
+        if (matches.isEmpty) {
+          issues.add(
+            UiValidationIssue(
+              path,
+              'Unknown route argument $routeArgumentName.',
+            ),
+          );
+        } else if (matches.first.type != parameter.type) {
+          issues.add(
+            UiValidationIssue(
+              path,
+              'Route argument $routeArgumentName is ${matches.first.type}, '
+              'not ${parameter.type}.',
+            ),
           );
         }
         return;
@@ -312,7 +356,9 @@ class UiSchemaValidator {
         }
       }
       final binding = node.action;
-      if ((node.type == 'stateList' || node.type == 'stateGrid') &&
+      if ((node.type == 'stateList' ||
+              node.type == 'stateGrid' ||
+              node.type == 'offlineBanner') &&
           binding == null) {
         issues.add(
           UiValidationIssue(path, '${node.type} requires an API action.'),
@@ -328,6 +374,14 @@ class UiSchemaValidator {
             ),
           );
         } else {
+          if (binding.optimistic && !action.supportsOptimistic) {
+            issues.add(
+              UiValidationIssue(
+                '$path.action.optimistic',
+                'The selected action does not support optimistic state.',
+              ),
+            );
+          }
           if (node.type == 'stateText') {
             final stateBinding =
                 node.properties['binding']?.toString() ?? 'error';
@@ -417,6 +471,14 @@ class UiSchemaValidator {
           );
           continue;
         }
+        if (flowBinding.optimistic && !action.supportsOptimistic) {
+          issues.add(
+            UiValidationIssue(
+              '$actionPath.optimistic',
+              'The selected action does not support optimistic state.',
+            ),
+          );
+        }
         for (final parameter in action.parameters) {
           if (!flowBinding.arguments.containsKey(parameter.name)) {
             if (parameter.required) {
@@ -453,6 +515,12 @@ String? _fieldReference(Object? value) {
     return null;
   }
   return value.substring(1, value.length - '.value'.length);
+}
+
+String? _routeReference(Object? value) {
+  if (value is! String || !value.startsWith(r'$route.')) return null;
+  final name = value.substring(r'$route.'.length);
+  return name.isEmpty ? null : name;
 }
 
 bool _isPrimitive(String type) =>

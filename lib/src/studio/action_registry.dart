@@ -18,6 +18,10 @@ class StudioActionDescriptor {
     required this.parameters,
     this.state = const {},
     this.responseFields = const [],
+    this.isMutation = false,
+    this.supportsOffline = false,
+    this.supportsOptimistic = false,
+    this.supportsCancellation = false,
   });
 
   factory StudioActionDescriptor.fromJson(Map<String, Object?> json) {
@@ -50,6 +54,10 @@ class StudioActionDescriptor {
             ),
           )
           .toList(growable: false),
+      isMutation: json['is_mutation'] as bool? ?? false,
+      supportsOffline: json['supports_offline'] as bool? ?? false,
+      supportsOptimistic: json['supports_optimistic'] as bool? ?? false,
+      supportsCancellation: json['supports_cancellation'] as bool? ?? false,
     );
   }
 
@@ -63,6 +71,10 @@ class StudioActionDescriptor {
   final List<StudioActionParameter> parameters;
   final Map<String, Object?> state;
   final List<StudioDataField> responseFields;
+  final bool isMutation;
+  final bool supportsOffline;
+  final bool supportsOptimistic;
+  final bool supportsCancellation;
 
   Map<String, Object?> toJson() => {
         'id': id,
@@ -75,6 +87,10 @@ class StudioActionDescriptor {
         'parameters': parameters.map((item) => item.toJson()).toList(),
         'state': state,
         'response_fields': responseFields.map((item) => item.toJson()).toList(),
+        'is_mutation': isMutation,
+        'supports_offline': supportsOffline,
+        'supports_optimistic': supportsOptimistic,
+        'supports_cancellation': supportsCancellation,
       };
 }
 
