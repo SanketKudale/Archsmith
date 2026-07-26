@@ -13,7 +13,10 @@ void main() {
         );
         expect(files.map((file) => file.path), contains('lib/main.dart'));
         expect(files.map((file) => file.path), contains('archsmith.yaml'));
-        expect(files.map((file) => file.path), contains('archsmith_api.yaml'));
+        expect(
+          files.map((file) => file.path),
+          contains('archsmith_api_common.json'),
+        );
         expect(
           files.map((file) => file.path),
           contains('lib/shared/widgets/app_component_defaults.dart'),

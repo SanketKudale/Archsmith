@@ -50,7 +50,12 @@ class GenerationEngine {
       files.add(const PlannedFile('lib/core/i18n/app_strings.dart', _strings));
     }
     if (config.network != NetworkType.none) {
-      files.add(const PlannedFile('archsmith_api.yaml', _apiContractTemplate));
+      files.add(
+        const PlannedFile(
+          'archsmith_api_common.json',
+          _apiCommonConfigTemplate,
+        ),
+      );
       files.add(
         PlannedFile('lib/core/network/network_client.dart', _network(config)),
       );
@@ -58,6 +63,12 @@ class GenerationEngine {
     if (config.router != RouterType.none) {
       files.add(
         PlannedFile('lib/core/router/app_router.dart', _router(config)),
+      );
+      files.add(
+        PlannedFile(
+          'lib/core/router/generated_routes.dart',
+          _emptyGeneratedRoutes(config.router),
+        ),
       );
     }
     if (config.modules.secureStorage) {
@@ -206,21 +217,29 @@ class GenerationEngine {
     final builder = config.modules.runtimeProtection
         ? "\n    builder: (context, child) => RuntimeProtectionGate(child: child ?? const SizedBox.shrink()),"
         : '';
-    if (config.router == RouterType.goRouter) {
+    if (config.router == RouterType.goRouter ||
+        config.router == RouterType.autoRoute) {
+      final routerConfig = config.router == RouterType.goRouter
+          ? 'appRouter'
+          : 'appRouter.config()';
       return "import 'package:flutter/material.dart';\nimport '../core/router/app_router.dart';\n"
           "${config.modules.theme ? "import '../core/theme/app_theme.dart';\n" : ''}$gateImport\n"
           "class App extends StatelessWidget {\n  const App({super.key});\n\n"
           "  @override\n  Widget build(BuildContext context) => MaterialApp.router(\n"
           "    title: '${names(config.projectName).titleCase}',\n"
-          "    routerConfig: appRouter,${config.modules.theme ? '\n    theme: AppTheme.light,' : ''}$builder\n  );\n}\n";
+          "    routerConfig: $routerConfig,${config.modules.theme ? '\n    theme: AppTheme.light,' : ''}$builder\n  );\n}\n";
     }
+    final routeImport = config.router == RouterType.navigator
+        ? "import '../core/router/generated_routes.dart';\n"
+        : '';
     return "import 'package:flutter/material.dart';\n"
-        "${config.modules.theme ? "import '../core/theme/app_theme.dart';\n" : ''}$gateImport\n"
+        "${config.modules.theme ? "import '../core/theme/app_theme.dart';\n" : ''}$routeImport$gateImport\n"
         "import '../shared/widgets/app_scaffold.dart';\n"
         "class App extends StatelessWidget {\n  const App({super.key});\n\n"
         "  @override\n  Widget build(BuildContext context) => MaterialApp(\n"
         "    title: '${names(config.projectName).titleCase}',${config.modules.theme ? '\n    theme: AppTheme.light,' : ''}\n"
-        "    home: const AppScaffold(body: Center(child: Text('Welcome'))),$builder\n  );\n}\n";
+        "    home: const AppScaffold(body: Center(child: Text('Welcome'))),"
+        "${config.router == RouterType.navigator ? '\n    routes: generatedRoutes,' : ''}$builder\n  );\n}\n";
   }
 
   String _network(ArchsmithConfig config) => switch (config.network) {
@@ -233,11 +252,34 @@ class GenerationEngine {
 
   String _router(ArchsmithConfig config) => switch (config.router) {
     RouterType.goRouter =>
-      "import 'package:flutter/material.dart';\nimport 'package:go_router/go_router.dart';\nimport '../../shared/widgets/app_scaffold.dart';\n\nfinal appRouter = GoRouter(routes: [\n  GoRoute(path: '/', builder: (context, state) => const AppScaffold(body: Center(child: Text('Home')))),\n]);\n",
+      "import 'package:flutter/material.dart';\nimport 'package:go_router/go_router.dart';\nimport '../../shared/widgets/app_scaffold.dart';\nimport 'generated_routes.dart';\n\nfinal appRouter = GoRouter(routes: [\n  ...generatedRoutes,\n  GoRoute(path: '/', builder: (context, state) => const AppScaffold(body: Center(child: Text('Home')))),\n]);\n",
     RouterType.autoRoute =>
-      "/// Configure AutoRoute routes here.\nabstract final class AppRoutes {\n  static const home = '/';\n}\n",
+      "import 'package:auto_route/auto_route.dart';\n"
+      "import 'generated_routes.dart';\n"
+      "// archsmith:route-imports:start\n"
+      "// archsmith:route-imports:end\n\n"
+      "part 'app_router.gr.dart';\n\n"
+      "@AutoRouterConfig()\n"
+      "class AppRouter extends RootStackRouter {\n"
+      "  @override\n"
+      "  List<AutoRoute> get routes => [\n"
+      "    // archsmith:routes:start\n"
+      "    // archsmith:routes:end\n"
+      "  ];\n"
+      "}\n\n"
+      "final appRouter = AppRouter();\n",
     RouterType.navigator =>
       "abstract final class AppRoutes {\n  static const home = '/';\n}\n",
+    RouterType.none => '',
+  };
+
+  String _emptyGeneratedRoutes(RouterType router) => switch (router) {
+    RouterType.goRouter =>
+      "import 'package:go_router/go_router.dart';\n\nabstract final class AppRoutes {}\nfinal generatedRoutes = <RouteBase>[];\n",
+    RouterType.autoRoute =>
+      "import 'package:flutter/material.dart';\n\nabstract final class AppRoutes {}\nextension GeneratedNavigation on BuildContext {}\n",
+    RouterType.navigator =>
+      "import 'package:flutter/material.dart';\n\nabstract final class AppRoutes {}\nfinal generatedRoutes = <String, WidgetBuilder>{};\nextension GeneratedNavigation on BuildContext {}\n",
     RouterType.none => '',
   };
 
@@ -422,6 +464,8 @@ class GenerationEngine {
       "import 'package:flutter_bloc/flutter_bloc.dart';\nimport '../security_decision.dart';\nsealed class RuntimeProtectionEvent { const RuntimeProtectionEvent(); }\nfinal class RuntimeProtectionStarted extends RuntimeProtectionEvent { const RuntimeProtectionStarted(); }\nclass RuntimeProtectionState { const RuntimeProtectionState({this.decision}); final SecurityDecision? decision; }\nclass RuntimeProtectionBloc extends Bloc<RuntimeProtectionEvent, RuntimeProtectionState> { RuntimeProtectionBloc() : super(const RuntimeProtectionState()) { on<RuntimeProtectionStarted>((event, emit) {}); } }\n",
     StateManagementType.provider =>
       "import 'package:flutter/foundation.dart';\nimport '../security_decision.dart';\nclass RuntimeProtectionNotifier extends ChangeNotifier { SecurityDecision? get decision => _decision; SecurityDecision? _decision; void update(SecurityDecision value) { _decision = value; notifyListeners(); } }\n",
+    StateManagementType.getx =>
+      "import 'package:get/get.dart';\nimport '../security_decision.dart';\nclass RuntimeProtectionController extends GetxController { final decision = Rxn<SecurityDecision>(); void updateDecision(SecurityDecision value) => decision.value = value; }\n",
     StateManagementType.none =>
       "import 'package:flutter/foundation.dart';\nimport '../security_decision.dart';\nfinal securityDecision = ValueNotifier<SecurityDecision?>(null);\n",
   };
@@ -433,58 +477,24 @@ const _exception =
     "class AppException implements Exception {\n  const AppException(this.message);\n  final String message;\n  @override\n  String toString() => message;\n}\n";
 const _logger =
     "abstract interface class AppLogger {\n  void info(String message);\n  void warning(String message);\n  void error(String message, [Object? error, StackTrace? stackTrace]);\n}\n";
-const _apiContractTemplate = '''
-# Share this contract with the backend team, then run: archsmith api
-base_url: "https://api.example.com"
-timeout_seconds: 30
-headers:
-  Content-Type: "application/json"
-
-# Static parameters sent with every endpoint. Use ApiRequestContext for
-# authorization tokens and other values that are only known at runtime.
-common:
-  headers:
-    X-Platform: "mobile"
-  query_parameters: {}
-  body_parameters: {}
-
-# Configure the backend's standard success/error envelope.
-response_handling:
-  data_key: "data"
-  success_key: "success"
-  success_values: [true]
-  # error_key: "has_error"
-  # error_values: [true]
-  message_key: "message"
-  code_key: "code"
-  errors_key: "errors"
-  success_status_codes: [200, 201]
-
-# Reusable response/request models can be referenced by endpoint payloads.
-models: {}
-
-# Supported methods: GET, POST, PUT, PATCH, DELETE.
-# Field types: string, int, double, num, bool, datetime, dynamic,
-# another model name, or any type followed by [].
-endpoints: []
-
-# Example:
-# endpoints:
-#   - name: login
-#     method: POST
-#     path: /auth/login
-#     headers:
-#       X-Client: mobile
-#     request:
-#       model: LoginRequest
-#       fields:
-#         email: string
-#         password: string
-#     response:
-#       model: LoginResponse
-#       fields:
-#         access_token: string
-#         expires_at: datetime
+const _apiCommonConfigTemplate = '''
+{
+  "base_url": "https://api.example.com",
+  "timeout_seconds": 30,
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "request": {},
+  "cache": {
+    "enabled": false,
+    "ttl_seconds": 300
+  },
+  "response": {
+    "success_code_path": "status.code",
+    "success_codes": ["000000"],
+    "message_path": "status.description"
+  }
+}
 ''';
 const _componentDefaults =
     "import 'package:flutter/material.dart';\n\n"

@@ -16,21 +16,10 @@ class ApiCodeGenerator {
     }
     _validateTypes(contract);
     return [
-      PlannedFile(
-        'lib/core/network/generated/api_config.dart',
-        _config(contract),
-      ),
+      ...supportFiles(contract),
       PlannedFile(
         'lib/core/network/generated/api_models.dart',
         _models(contract.models),
-      ),
-      const PlannedFile(
-        'lib/core/network/generated/api_request_context.dart',
-        _requestContext,
-      ),
-      const PlannedFile(
-        'lib/core/network/generated/api_result.dart',
-        _apiResult,
       ),
       PlannedFile(
         'lib/core/network/generated/api_client.dart',
@@ -42,6 +31,22 @@ class ApiCodeGenerator {
       ),
     ];
   }
+
+  /// Generates only the common configuration, request context, and result API.
+  List<PlannedFile> supportFiles(ApiContract contract) => [
+    PlannedFile(
+      'lib/core/network/generated/api_config.dart',
+      _config(contract),
+    ),
+    const PlannedFile(
+      'lib/core/network/generated/api_request_context.dart',
+      _requestContext,
+    ),
+    const PlannedFile(
+      'lib/core/network/generated/api_result.dart',
+      _apiResult,
+    ),
+  ];
 
   String _config(ApiContract contract) =>
       "abstract final class ApiConfig {\n"
@@ -514,7 +519,7 @@ const _apiResult =
     "    final errorKey = ApiConfig.errorKey;\n"
     "    if (errorKey != null &&\n"
     "        map != null &&\n"
-    "        ApiConfig.errorValues.contains(map[errorKey])) {\n"
+    "        ApiConfig.errorValues.contains(_readPath(map, errorKey))) {\n"
     "      return failure<T>(\n"
     "        statusCode: statusCode,\n"
     "        body: body,\n"
@@ -525,7 +530,7 @@ const _apiResult =
     "    final successKey = ApiConfig.successKey;\n"
     "    if (successKey != null &&\n"
     "        map != null &&\n"
-    "        !ApiConfig.successValues.contains(map[successKey])) {\n"
+    "        !ApiConfig.successValues.contains(_readPath(map, successKey))) {\n"
     "      return failure<T>(\n"
     "        statusCode: statusCode,\n"
     "        body: body,\n"
@@ -534,7 +539,9 @@ const _apiResult =
     "      );\n"
     "    }\n"
     "    try {\n"
-    "      final payload = ApiConfig.dataKey == null ? map : map?[ApiConfig.dataKey];\n"
+    "      final payload = ApiConfig.dataKey == null\n"
+    "          ? map\n"
+    "          : _readPath(map, ApiConfig.dataKey!);\n"
     "      if (payload is! Map) {\n"
     "        return ApiFailure(ApiError(\n"
     "          type: ApiErrorType.parsing,\n"
@@ -546,7 +553,7 @@ const _apiResult =
     "      return ApiSuccess(\n"
     "        decode(Map<String, dynamic>.from(payload)),\n"
     "        statusCode: statusCode,\n"
-    "        message: map?[ApiConfig.messageKey]?.toString(),\n"
+    "        message: _readPath(map, ApiConfig.messageKey)?.toString(),\n"
     "      );\n"
     "    } catch (error) {\n"
     "      return ApiFailure(ApiError(\n"
@@ -567,12 +574,20 @@ const _apiResult =
     "    return ApiFailure(ApiError(\n"
     "      type: transportType ?? _typeForStatus(statusCode),\n"
     "      statusCode: statusCode,\n"
-    "      code: map?[ApiConfig.codeKey]?.toString(),\n"
-    "      message: map?[ApiConfig.messageKey]?.toString() ??\n"
+    "      code: _readPath(map, ApiConfig.codeKey)?.toString(),\n"
+    "      message: _readPath(map, ApiConfig.messageKey)?.toString() ??\n"
     "          fallbackMessage ??\n"
     "          _messageForStatus(statusCode),\n"
-    "      details: map?[ApiConfig.errorsKey] ?? body,\n"
+    "      details: _readPath(map, ApiConfig.errorsKey) ?? body,\n"
     "    ));\n"
+    "  }\n\n"
+    "  static Object? _readPath(Map<String, dynamic>? source, String path) {\n"
+    "    Object? current = source;\n"
+    "    for (final segment in path.split('.')) {\n"
+    "      if (current is! Map) return null;\n"
+    "      current = current[segment];\n"
+    "    }\n"
+    "    return current;\n"
     "  }\n\n"
     "  static bool _isSuccessStatus(int statusCode) =>\n"
     "      ApiConfig.successStatusCodes.isEmpty\n"

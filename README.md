@@ -52,7 +52,8 @@ archsmith feature payments
 archsmith page checkout --feature payments
 archsmith model payment --feature payments --no-tests
 archsmith widget profile_card
-archsmith api
+archsmith api path/to/cusacc.json
+archsmith api-dir path/to/jsons
 ```
 
 ## Architectures and integrations
@@ -66,7 +67,9 @@ Optional modules include localization, theming, secure storage, networking, rout
 ```text
 archsmith create [project_name]
 archsmith init
-archsmith api
+archsmith api <endpoint.json>
+archsmith api-dir <json-directory>
+archsmith api-common <operation> ...
 archsmith feature <feature_name>
 archsmith page <page_name>
 archsmith model <model_name>
@@ -114,98 +117,93 @@ Supported architecture values are `clean_feature`, `clean_layer`, `mvvm`, and `s
 
 ## API contract generation
 
-Projects using Dio or HTTP include an `archsmith_api.yaml` contract. The backend team can maintain the endpoint details there, and the application team can generate typed networking code with:
+Backend endpoint files contain only the endpoint URL plus real request and response examples. Base URL, common headers, and common request fields live once in `archsmith_api_common.json`.
 
-```shell
-archsmith api --dry-run
-archsmith api
-```
-
-Archsmith protects previously generated files like every other generator. After intentionally changing the contract, use `archsmith api --force` to replace the generated output.
-
-```yaml
-base_url: "https://api.example.com"
-timeout_seconds: 30
-headers:
-  Content-Type: "application/json"
-
-common:
-  headers:
-    X-Platform: mobile
-  query_parameters:
-    locale: en
-  body_parameters:
-    device_type: mobile
-
-response_handling:
-  data_key: data
-  success_key: success
-  success_values: [true, 1]
-  error_key: has_error
-  error_values: [true]
-  message_key: message
-  code_key: error_code
-  errors_key: errors
-  success_status_codes: [200, 201]
-
-models:
-  User:
-    fields:
-      id: int
-      display_name:
-        type: string
-        required: false
-
-endpoints:
-  - name: login
-    method: POST
-    path: /users/{user_id}/login
-    headers:
-      X-Client: mobile
-    path_parameters:
-      user_id: int
-    query_parameters:
-      include_permissions:
-        type: bool
-        required: false
-    request:
-      model: LoginRequest
-      fields:
-        email: string
-        password: string
-    response:
-      model: LoginResponse
-      fields:
-        access_token: string
-        expires_at: datetime
-        user: User
-```
-
-This generates configuration, models, a request context, typed results, the API client, and a barrel under `lib/core/network/generated`. Common headers, query parameters, and body parameters are merged automatically with endpoint-specific values. Runtime values such as access tokens can be configured once:
-
-```dart
-final api = GeneratedApiClient(
-  networkClient,
-  context: ApiRequestContext(
-    headers: {'Authorization': 'Bearer $accessToken'},
-    queryParameters: {'app_version': appVersion},
-    bodyParameters: {'device_id': deviceId},
-  ),
-);
-```
-
-Every endpoint returns `ApiResult<ResponseModel>`. The generated response handler checks the configured success status codes and the backend's configurable success/error keys and accepted values, unwraps `data_key`, parses success data, and extracts backend message, code, and validation details for failures. It classifies network, timeout, cancellation, redirect, general client, bad-request, authentication, authorization, not-found, conflict, validation, rate-limit, server, backend-envelope, parsing, and unknown failures:
-
-```dart
-switch (await api.login(payload: loginRequest, userId: userId)) {
-  case ApiSuccess(:final data):
-    // Render data.
-  case ApiFailure(:final error):
-    // Render error.message or branch on error.type.
+```json
+{
+  "url": "accountDeactivate",
+  "request": {
+    "fullAccountNumber": "0471-0621998-001-3000-000",
+    "closingReason": 1
+  },
+  "response": {
+    "status": {
+      "code": "000000",
+      "description": "SUCCESS"
+    },
+    "data": {
+      "statusCode": 0,
+      "statusMessage": "OPERATION SUCCESSFUL"
+    }
+  }
 }
 ```
 
-Per-call `ApiRequestContext overrides` take precedence over project-wide context. Do not store authorization tokens or other secrets in the YAML contract.
+Set the shared base URL once. Additional commands update the existing JSON object or append a new key without removing earlier values:
+
+```shell
+archsmith api-common base-url https://api.example.com
+archsmith api-common header Content-Type application/json
+archsmith api-common header X-Platform mobile
+archsmith api-common request channel MOBILE
+archsmith api-common request retryCount 3
+archsmith api-common success-code "00"
+archsmith api-common add-success-code "000000"
+archsmith api-common success-code-path meta.resultCode
+archsmith api-common message-path meta.message
+archsmith api-common cache-enabled true
+archsmith api-common cache-ttl 900
+```
+
+Values passed to `api-common request` are parsed as JSON when possible, so numbers, booleans, lists, and objects keep their types. Generate an endpoint with:
+
+```shell
+archsmith api path/to/cusacc.json --feature cusacc --method POST --dry-run
+archsmith api path/to/cusacc.json --feature cusacc --method POST
+```
+
+The JSON filename becomes the feature name when `--feature` is omitted. Request and response field types, nested objects, and lists are inferred from the examples. Archsmith generates:
+
+- remote datasource;
+- request and response models;
+- request and response entities;
+- domain repository and data repository implementation;
+- use case;
+- state and notifier;
+- separate datasource, repository, use-case, and state-notifier provider files;
+- common network client and request-context providers;
+- centralized success/error response handling.
+
+The initial response envelope checks `status.code == "000000"` and reads messages from `status.description`; none of these values are hardcoded into generated endpoint logic. Use `success-code` to replace the accepted-code list, `add-success-code` to append another accepted code, and the path commands to match a different backend envelope. All values are stored in `archsmith_api_common.json`. Runtime-only values such as access tokens can still be supplied through `ApiRequestContext`; avoid storing secrets in source control.
+
+Generate a complete directory of backend examples together:
+
+```shell
+archsmith api-dir jsons/
+archsmith api-dir jsons/ --recursive --dry-run
+```
+
+Batch generation sorts inputs, emits common networking/authentication/cache files once, rejects conflicting output before writing, and creates `docs/archsmith_api_summary.md`.
+
+Every generated remote datasource uses `ApiRequestCoordinator`. It adds request IDs, reads authorization tokens through `AuthTokenStore`, retries once through `AuthTokenRefresher` after a `401`, clears the session and invokes `AuthSessionListener` when refresh fails, and passes sanitized request/response data to `NetworkLogger`. The generated defaults are safe no-ops; inject application implementations through the generated DI file for the selected state manager.
+
+Offline response caching is disabled initially. `cache-enabled true` enables the generated in-memory cache and `cache-ttl` controls expiration. Implement `ApiResponseCache` with Hive, Isar, SQLite, or another persistent store when cached data must survive application restarts.
+
+Generated presentation state exposes `isLoading`, `data`, `error`, `isEmpty`, `hasData`, `hasError`, and `retry()`. API dependency files are generated for Riverpod, Provider, BLoC/Cubit, GetX, or framework-only `ValueNotifier`, based on `archsmith.yaml`.
+
+## Route registration
+
+Generate a page and register it in one command:
+
+```shell
+archsmith page account_deactivate \
+  --feature accounts \
+  --route /account-deactivate
+```
+
+Archsmith maintains `.archsmith/routes.json` and `lib/core/router/generated_routes.dart`, generates typed navigation helpers, and updates its owned GoRouter or AutoRoute registration points. AutoRoute pages receive `@RoutePage()` and require the generated `build_runner` step. Navigator projects receive a generated route map.
+
+Existing structured YAML contracts remain available through `archsmith api --contract archsmith_api.yaml`.
 
 ## Runtime protection
 

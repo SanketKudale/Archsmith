@@ -20,4 +20,12 @@ void main() {
     );
     expect(dependencies, isNot(contains('runtime_guard')));
   });
+
+  test('selects GetX dependency', () {
+    const config = ArchsmithConfig(
+      projectName: 'example_app',
+      stateManagement: StateManagementType.getx,
+    );
+    expect(const DependencyManifest().forConfig(config), contains('get'));
+  });
 }
