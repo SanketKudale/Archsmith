@@ -26,6 +26,8 @@
 - Added conditional multi-action Studio flows with confirmation, feedback,
   success/error navigation, debounce, stale-flow cancellation, and collection
   load-more actions.
+- Added visual screen lifecycle controls, reusable project templates, a
+  component-tree outline, and validated editable responsive ranges.
 
 ## 0.3.0 - 2026-07-26
 

@@ -46,6 +46,31 @@ class UiSchemaValidator {
           ),
         );
       }
+      if ((breakpoint.minWidth ?? 0) < 0 || (breakpoint.maxWidth ?? 0) < 0) {
+        issues.add(
+          UiValidationIssue(
+            'breakpoints.${breakpoint.name}',
+            'Breakpoint widths cannot be negative.',
+          ),
+        );
+      }
+    }
+    final orderedBreakpoints = schema.breakpoints.toList()
+      ..sort(
+        (left, right) => (left.minWidth ?? 0).compareTo(right.minWidth ?? 0),
+      );
+    for (var index = 1; index < orderedBreakpoints.length; index++) {
+      final previous = orderedBreakpoints[index - 1];
+      final current = orderedBreakpoints[index];
+      if (previous.maxWidth == null ||
+          previous.maxWidth! >= (current.minWidth ?? 0)) {
+        issues.add(
+          UiValidationIssue(
+            'breakpoints.${current.name}',
+            'Breakpoint ranges cannot overlap.',
+          ),
+        );
+      }
     }
     final actionsById = {for (final action in actions) action.id: action};
     final nodesById = <String, UiNode>{};

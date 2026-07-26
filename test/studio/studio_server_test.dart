@@ -49,6 +49,7 @@ void main() {
       contains('projectBanner'),
     );
     expect(metadata['actions'], isEmpty);
+    expect(metadata['templates'], isEmpty);
 
     final schema = {
       'version': 1,
@@ -116,6 +117,33 @@ void main() {
       extensionPage.readAsStringSync(),
       '// developer customization\n',
     );
+
+    final templateSchema = {...schema, 'name': 'dashboard_template'};
+    final savedTemplate = await _request(
+      client,
+      url.resolve('/api/templates'),
+      method: 'POST',
+      body: jsonEncode(templateSchema),
+    );
+    expect(savedTemplate.statusCode, HttpStatus.ok);
+    final loadedTemplate = await _request(
+      client,
+      url.resolve('/api/templates/dashboard_template'),
+    );
+    expect(loadedTemplate.statusCode, HttpStatus.ok);
+    expect(
+      (jsonDecode(loadedTemplate.body) as Map<String, dynamic>)['name'],
+      'dashboard_template',
+    );
+
+    final deleted = await _request(
+      client,
+      url.resolve('/api/screens/home'),
+      method: 'DELETE',
+    );
+    expect(deleted.statusCode, HttpStatus.ok);
+    expect(source.existsSync(), isFalse);
+    expect(generatedPage.existsSync(), isTrue);
   });
 }
 

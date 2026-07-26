@@ -114,6 +114,7 @@ class StudioServer {
         'breakpoints':
             defaultUiBreakpoints.map((item) => item.toJson()).toList(),
         'screens': _screenNames(),
+        'templates': _templateNames(),
         'project': config.projectName,
         'state_management': config.stateManagement.value,
       });
@@ -122,6 +123,37 @@ class StudioServer {
       final name = Uri.decodeComponent(path.substring('/api/screens/'.length));
       final schema = const UiSchemaStore().read(_screenPath(name));
       return _json(request.response, HttpStatus.ok, schema.toJson());
+    }
+    if (request.method == 'DELETE' && path.startsWith('/api/screens/')) {
+      final name = Uri.decodeComponent(path.substring('/api/screens/'.length));
+      return _deleteSchema(
+        request.response,
+        _screenPath(name),
+        'screen',
+      );
+    }
+    if (request.method == 'GET' && path.startsWith('/api/templates/')) {
+      final name =
+          Uri.decodeComponent(path.substring('/api/templates/'.length));
+      final schema = const UiSchemaStore().read(_templatePath(name));
+      return _json(request.response, HttpStatus.ok, schema.toJson());
+    }
+    if (request.method == 'DELETE' && path.startsWith('/api/templates/')) {
+      final name =
+          Uri.decodeComponent(path.substring('/api/templates/'.length));
+      return _deleteSchema(
+        request.response,
+        _templatePath(name),
+        'template',
+      );
+    }
+    if (request.method == 'POST' && path == '/api/templates') {
+      final schema = await _readSchema(request);
+      await const UiSchemaStore().write(_templatePath(schema.name), schema);
+      return _json(request.response, HttpStatus.ok, {
+        'message': 'Saved ${schema.name} template',
+        'template': schema.name,
+      });
     }
     if (request.method == 'POST' &&
         (path == '/api/screens' || path == '/api/generate')) {
@@ -219,7 +251,34 @@ class StudioServer {
     return names;
   }
 
+  List<String> _templateNames() =>
+      _schemaNames(p.join(projectRoot, '.archsmith', 'ui_templates'));
+
+  List<String> _schemaNames(String path) {
+    final directory = Directory(path);
+    if (!directory.existsSync()) return const [];
+    final result = directory
+        .listSync()
+        .whereType<File>()
+        .where((file) => p.extension(file.path) == '.json')
+        .map((file) => p.basenameWithoutExtension(file.path))
+        .toList()
+      ..sort();
+    return result;
+  }
+
   String _screenPath(String name) {
+    return p.join(projectRoot, '.archsmith', 'ui', '${_safeName(name)}.json');
+  }
+
+  String _templatePath(String name) => p.join(
+        projectRoot,
+        '.archsmith',
+        'ui_templates',
+        '${_safeName(name)}.json',
+      );
+
+  String _safeName(String name) {
     final safeName = name
         .trim()
         .toLowerCase()
@@ -229,7 +288,24 @@ class StudioServer {
       throw const FormatException(
           'Screen name must contain letters or digits.');
     }
-    return p.join(projectRoot, '.archsmith', 'ui', '$safeName.json');
+    return safeName;
+  }
+
+  Future<void> _deleteSchema(
+    HttpResponse response,
+    String path,
+    String kind,
+  ) async {
+    final file = File(path);
+    if (!file.existsSync()) {
+      return _json(
+        response,
+        HttpStatus.notFound,
+        {'error': 'The $kind does not exist.'},
+      );
+    }
+    await file.delete();
+    return _json(response, HttpStatus.ok, {'message': 'Deleted $kind'});
   }
 
   String _wrapperPath(UiScreenSchema schema) {

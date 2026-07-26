@@ -39,5 +39,10 @@ void main() {
     expect(StudioAssets.html, contains('id="flowSteps"'));
     expect(StudioAssets.js, contains('function renderFlowSteps'));
     expect(StudioAssets.js, contains("'previousError'"));
+    expect(StudioAssets.html, contains('id="componentTree"'));
+    expect(StudioAssets.html, contains('id="templates"'));
+    expect(StudioAssets.js, contains('function renderBreakpoints'));
+    expect(StudioAssets.js, contains('function renderTree'));
+    expect(StudioAssets.js, contains('async function deleteScreen'));
   });
 }

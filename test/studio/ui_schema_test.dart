@@ -262,4 +262,20 @@ void main() {
       isEmpty,
     );
   });
+
+  test('reports overlapping responsive breakpoint ranges', () {
+    const schema = UiScreenSchema(
+      name: 'overlap',
+      breakpoints: [
+        UiBreakpoint(name: 'small', maxWidth: 700),
+        UiBreakpoint(name: 'large', minWidth: 600),
+      ],
+      root: UiNode(id: 'root', type: 'column'),
+    );
+
+    expect(
+      const UiSchemaValidator().validate(schema).map((issue) => issue.message),
+      contains('Breakpoint ranges cannot overlap.'),
+    );
+  });
 }

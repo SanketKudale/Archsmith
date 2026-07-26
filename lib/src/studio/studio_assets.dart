@@ -15,11 +15,7 @@ abstract final class StudioAssets {
     <input id="screenName" value="home" aria-label="Screen name">
     <input id="featureName" value="home" aria-label="Feature">
     <input id="route" value="/home" aria-label="Route">
-    <div class="breakpoints">
-      <button data-width="390" class="active">Mobile</button>
-      <button data-width="800">Tablet</button>
-      <button data-width="1280">Desktop</button>
-    </div>
+    <div id="breakpoints" class="breakpoints"></div>
     <button id="undo" class="icon secondary" title="Undo">↶</button>
     <button id="redo" class="icon secondary" title="Redo">↷</button>
     <button id="save" class="secondary">Save</button>
@@ -27,9 +23,24 @@ abstract final class StudioAssets {
   </header>
   <main>
     <aside class="palette panel">
+      <h2>Screens</h2>
+      <div class="screen-actions">
+        <button id="newScreen" class="secondary">New</button>
+        <button id="duplicateScreen" class="secondary">Copy</button>
+        <button id="deleteScreen" class="danger">Delete</button>
+      </div>
+      <label>Template<select id="templates"><option value="">Choose template</option></select></label>
+      <div class="screen-actions">
+        <button id="applyTemplate" class="secondary">Apply</button>
+        <button id="saveTemplate" class="secondary">Save current</button>
+      </div>
+      <hr>
       <h2>Components</h2>
       <input id="componentSearch" type="search" placeholder="Search components">
       <div id="components"></div>
+      <hr>
+      <h2>Component tree</h2>
+      <div id="componentTree"></div>
     </aside>
     <section class="workspace">
       <div id="status">Ready</div>
@@ -61,6 +72,9 @@ abstract final class StudioAssets {
         <button id="duplicate" class="secondary wide">Duplicate component</button>
         <button id="remove" class="danger">Remove component</button>
       </div>
+      <hr>
+      <h2>Responsive ranges</h2>
+      <div id="breakpointEditor"></div>
     </aside>
   </main>
   <script src="/app.js"></script>
@@ -77,6 +91,7 @@ header input,header select{width:145px}header #route{width:190px}.breakpoints{di
 button{border:0;border-radius:8px;padding:9px 13px;color:white;background:#7357f5;cursor:pointer}button.secondary{background:#293247}button.danger{width:100%;margin-top:18px;background:#542a36;color:#ffabbc}
 button.icon{font-size:18px;padding:6px 11px}button.wide{width:100%;margin-top:18px}
 button:disabled{opacity:.35;cursor:not-allowed}
+.screen-actions{display:flex;gap:7px;margin:8px 0}.screen-actions button{flex:1;padding:7px}.screen-actions button.danger{width:auto;margin:0}.tree-item{padding:6px 7px;border-radius:6px;color:#aeb8ca;cursor:pointer;font-size:12px}.tree-item:hover,.tree-item.selected{background:#292f47;color:white}.tree-type{color:#7763df}.breakpoint-row{padding:8px;margin:7px 0;border:1px solid #293247;border-radius:8px}.breakpoint-row strong{font-size:12px}.breakpoint-values{display:flex;gap:6px}.breakpoint-values label{flex:1}
 main{height:calc(100vh - 64px);display:grid;grid-template-columns:240px minmax(400px,1fr) 300px}.panel{background:#101520;padding:18px;overflow:auto}.palette{border-right:1px solid #252b39}.inspector{border-left:1px solid #252b39}h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:#8d98ad;margin:0 0 14px}
 #components{margin-top:13px}.category{font-size:11px;color:#727f96;margin:18px 0 7px;text-transform:uppercase}.component{display:flex;align-items:center;gap:9px;padding:10px;margin:5px 0;border:1px solid #283044;border-radius:9px;background:#161c29;cursor:grab}.component:before{content:"+";display:grid;place-items:center;width:22px;height:22px;border-radius:6px;background:#292f47;color:#a89aff}
 .workspace{position:relative;overflow:auto;display:flex;justify-content:center;padding:45px;background-image:radial-gradient(#283042 1px,transparent 1px);background-size:22px 22px}
@@ -112,8 +127,10 @@ async function init() {
     root: {id:'page',type:'appScaffold',properties:{title:'Home'},children:[]}
   };
   bootstrap.screens.forEach(name=>$('screens').add(new Option(name,name)));
+  bootstrap.templates.forEach(name=>$('templates').add(new Option(name,name)));
   renderPalette();
   bindControls();
+  renderBreakpoints();
   render();
 }
 
@@ -173,17 +190,37 @@ function duplicateSelected(){
 }
 function checkpoint(){history.push(JSON.stringify(schema));if(history.length>100)history.shift();future=[];updateHistoryButtons()}
 function undo(){
-  if(!history.length)return;future.push(JSON.stringify(schema));schema=JSON.parse(history.pop());selected=null;syncScreenFields();render();updateHistoryButtons();
+  if(!history.length)return;future.push(JSON.stringify(schema));schema=JSON.parse(history.pop());selected=null;syncScreenFields();renderBreakpoints();render();updateHistoryButtons();
 }
 function redo(){
-  if(!future.length)return;history.push(JSON.stringify(schema));schema=JSON.parse(future.pop());selected=null;syncScreenFields();render();updateHistoryButtons();
+  if(!future.length)return;history.push(JSON.stringify(schema));schema=JSON.parse(future.pop());selected=null;syncScreenFields();renderBreakpoints();render();updateHistoryButtons();
 }
 function updateHistoryButtons(){$('undo').disabled=!history.length;$('redo').disabled=!future.length}
 function syncScreenFields(){$('screenName').value=schema.name;$('featureName').value=schema.feature||schema.name;$('route').value=schema.route||''}
+function freshSchema(name='home'){
+  return {version:1,name,feature:name,route:`/${name.replaceAll('_','-')}`,breakpoints:JSON.parse(JSON.stringify(bootstrap.breakpoints)),root:{id:'page',type:'appScaffold',properties:{title:name.replaceAll('_',' ')},children:[]}};
+}
+function newScreen(){checkpoint();schema=freshSchema('new_screen');selected=null;syncScreenFields();$('screens').value='';renderBreakpoints();render()}
+function duplicateScreen(){checkpoint();schema=JSON.parse(JSON.stringify(schema));schema.name=`${schema.name}_copy`;schema.feature=`${schema.feature||schema.name}_copy`;schema.route=`${schema.route||'/screen'}-copy`;selected=null;syncScreenFields();$('screens').value='';renderBreakpoints();render()}
+async function deleteScreen(){
+  const name=$('screens').value;if(!name)return setStatus('Select a saved screen first.',true);
+  if(!confirm(`Delete the ${name} Studio schema? Generated Dart files are kept.`))return;
+  try{const result=await request(`/api/screens/${encodeURIComponent(name)}`,{method:'DELETE'});$('screens').querySelector(`option[value="${CSS.escape(name)}"]`)?.remove();newScreen();setStatus(result.message)}catch(error){setStatus(error.message,true)}
+}
+async function applyTemplate(){
+  const name=$('templates').value;if(!name)return setStatus('Choose a template first.',true);
+  try{const template=await request(`/api/templates/${encodeURIComponent(name)}`);checkpoint();const identity={name:schema.name,feature:schema.feature,route:schema.route};schema=template;Object.assign(schema,identity);selected=null;syncScreenFields();renderBreakpoints();render();setStatus(`Applied ${name} template`)}catch(error){setStatus(error.message,true)}
+}
+async function saveTemplate(){
+  const name=prompt('Template name',`${schema.name}_template`);if(!name)return;
+  const template=JSON.parse(JSON.stringify(schema));template.name=name;
+  try{const result=await request('/api/templates',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(template)});if(![...$('templates').options].some(option=>option.value===name))$('templates').add(new Option(name,name));$('templates').value=name;setStatus(result.message)}catch(error){setStatus(error.message,true)}
+}
 
 function render(){
   schema.name=$('screenName').value; schema.feature=$('featureName').value; schema.route=$('route').value;
   renderCanvas();
+  renderTree();
   renderInspector();
 }
 function renderCanvas(){
@@ -215,7 +252,33 @@ function renderNode(node){
   element.appendChild(content); return element;
 }
 function escapeHtml(value){const div=document.createElement('div');div.textContent=value;return div.innerHTML}
-function currentBreakpoint(){const width=parseInt($('device').style.width);return width>=1024?'desktop':width>=600?'tablet':'mobile'}
+function currentBreakpoint(){return document.querySelector('#breakpoints button.active')?.dataset.name||schema.breakpoints[0]?.name||'mobile'}
+function breakpointWidth(item){if(item.min_width&&item.max_width)return Math.round((item.min_width+item.max_width)/2);if(item.min_width)return Math.max(item.min_width,1280);return Math.min(item.max_width||390,390)}
+function renderBreakpoints(active=currentBreakpoint()){
+  const host=$('breakpoints');host.innerHTML='';
+  schema.breakpoints.forEach((item,index)=>{
+    const button=document.createElement('button');button.textContent=item.name;button.dataset.name=item.name;button.dataset.width=breakpointWidth(item);
+    if(item.name===active||(!schema.breakpoints.some(value=>value.name===active)&&index===0))button.classList.add('active');
+    button.onclick=()=>{host.querySelectorAll('button').forEach(value=>value.classList.remove('active'));button.classList.add('active');$('device').style.width=`${button.dataset.width}px`;render()};
+    host.appendChild(button);
+  });
+  const selected=host.querySelector('button.active');if(selected)$('device').style.width=`${selected.dataset.width}px`;
+  renderBreakpointEditor();
+}
+function renderBreakpointEditor(){
+  const host=$('breakpointEditor');host.innerHTML='';
+  schema.breakpoints.forEach(item=>{
+    const row=document.createElement('div');row.className='breakpoint-row';row.innerHTML=`<strong>${escapeHtml(item.name)}</strong>`;
+    const values=document.createElement('div');values.className='breakpoint-values';
+    [['min_width','Min'],['max_width','Max']].forEach(([key,title])=>{const label=document.createElement('label');label.textContent=title;const input=document.createElement('input');input.type='number';input.min='0';input.value=item[key]??'';input.onchange=()=>{checkpoint();item[key]=input.value===''?undefined:Number(input.value);renderBreakpoints(item.name)};label.appendChild(input);values.appendChild(label)});
+    row.appendChild(values);host.appendChild(row);
+  });
+}
+function renderTree(){
+  const host=$('componentTree');host.innerHTML='';
+  const visit=(node,depth)=>{const item=document.createElement('div');item.className='tree-item'+(selected===node?' selected':'');item.style.paddingLeft=`${7+depth*13}px`;item.innerHTML=`<span class="tree-type">${escapeHtml(node.type)}</span> · ${escapeHtml(node.id)}`;item.onclick=()=>{selected=node;render()};host.appendChild(item);(node.children||[]).forEach(child=>visit(child,depth+1))};
+  visit(schema.root,0);
+}
 
 function renderInspector(){
   $('emptyInspector').hidden=!!selected; $('inspector').hidden=!selected;if(!selected)return;
@@ -394,8 +457,10 @@ function bindControls(){
   $('screenName').onchange=updateScreen;$('featureName').onchange=updateScreen;$('route').onchange=updateScreen;
   $('screens').onchange=async e=>{
     if(!e.target.value)return;
-    try{schema=await request(`/api/screens/${encodeURIComponent(e.target.value)}`);selected=null;history=[];future=[];syncScreenFields();render();updateHistoryButtons()}catch(error){setStatus(error.message,true)}
+    try{schema=await request(`/api/screens/${encodeURIComponent(e.target.value)}`);selected=null;history=[];future=[];syncScreenFields();renderBreakpoints();render();updateHistoryButtons()}catch(error){setStatus(error.message,true)}
   };
+  $('newScreen').onclick=newScreen;$('duplicateScreen').onclick=duplicateScreen;$('deleteScreen').onclick=deleteScreen;
+  $('applyTemplate').onclick=applyTemplate;$('saveTemplate').onclick=saveTemplate;
   $('nodeId').onchange=e=>{checkpoint();selected.id=e.target.value;render()};
   $('breakpointOverride').onchange=renderInspector;
   $('actionSearch').oninput=e=>renderActions(e.target.value);
