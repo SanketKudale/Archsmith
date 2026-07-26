@@ -138,6 +138,16 @@ ${textFields.map((node) => '    _${_identifier(node.id)}Controller.dispose();').
         )
         .join('\n');
     final actionMethods = invokedActions.map(_actionMethod).join('\n');
+    final validationHelper = invokedActions.any(_hasBoundInputs)
+        ? '''
+  void _showValidationError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+'''
+        : '';
 
     return '''$imports
 
@@ -163,7 +173,7 @@ ${_breakpointSelection()}
       );
 
 $breakpointMethods
-$actionMethods}
+$actionMethods$validationHelper}
 ''';
   }
 
@@ -440,9 +450,26 @@ $callbackArguments  );
         .firstWhere(
           (item) => item.actionId == action.id && item.method != 'watch',
         );
+    final validations = StringBuffer();
+    final variables = <String, String>{};
+    for (final parameter in action.parameters) {
+      final value = binding.arguments[parameter.name];
+      final fieldId = _fieldReference(value);
+      if (fieldId == null) continue;
+      final matchingFields = textFields.where((node) => node.id == fieldId);
+      final field = matchingFields.isEmpty ? null : matchingFields.first;
+      if (field == null) continue;
+      final variable =
+          '_${_identifier(action.id)}${_pascal(parameter.name)}Value';
+      variables[parameter.name] = variable;
+      validations.write(
+        _inputValidation(field, parameter, variable),
+      );
+    }
     final arguments = action.parameters.map((parameter) {
       final value = binding.arguments[parameter.name];
-      return '      ${parameter.name}: ${_argument(value, parameter.type)},';
+      return '      ${parameter.name}: '
+          '${_argument(value, parameter.type, variable: variables[parameter.name])},';
     }).join('\n');
     final invoke = switch (config.stateManagement) {
       StateManagementType.riverpod =>
@@ -457,11 +484,13 @@ $callbackArguments  );
     };
     final navigation = binding.onSuccessRoute == null
         ? ''
-        : "\n    if (mounted) await Navigator.of(context).pushNamed("
+        : "\n    if (!mounted) return;"
+            "\n    if (${_actionErrorExpression(action)} != null) return;"
+            "\n    await Navigator.of(context).pushNamed("
             "${_string(binding.onSuccessRoute!)});";
     return '''
   Future<void> _run${_pascal(action.id)}() async {
-    final request = ${action.requestType}(
+$validations    final request = ${action.requestType}(
 $arguments
     );
     await $invoke;$navigation
@@ -470,7 +499,12 @@ $arguments
 ''';
   }
 
-  String _argument(Object? value, String type) {
+  String _argument(
+    Object? value,
+    String type, {
+    String? variable,
+  }) {
+    if (variable != null) return variable;
     if (value is String && value.startsWith(r'$') && value.endsWith('.value')) {
       final id = value.substring(1, value.length - '.value'.length);
       final source = '_${_identifier(id)}Controller.text';
@@ -485,6 +519,120 @@ $arguments
     if (value is String) return _string(value);
     if (value == null) return 'null';
     return value.toString();
+  }
+
+  String _inputValidation(
+    UiNode field,
+    StudioActionParameter parameter,
+    String variable,
+  ) {
+    final properties = field.properties;
+    final source = '_${_identifier(field.id)}Controller.text';
+    final textVariable = '${variable}Text';
+    final trim = properties['trim'] != false ? '.trim()' : '';
+    final label =
+        (properties['label'] ?? properties['hint'] ?? field.id).toString();
+    final customMessage = properties['validationMessage']?.toString();
+    final buffer = StringBuffer(
+      '    final $textVariable = $source$trim;\n',
+    );
+    void failure(String fallback) {
+      buffer
+        ..writeln(
+          '    _showValidationError(${_string(customMessage ?? fallback)});',
+        )
+        ..writeln('    return;');
+    }
+
+    if (properties['required'] == true) {
+      buffer.writeln('    if ($textVariable.isEmpty) {');
+      failure('$label is required.');
+      buffer.writeln('    }');
+    }
+    final minLength = properties['minLength'];
+    if (minLength is num) {
+      buffer.writeln('    if ($textVariable.length < $minLength) {');
+      failure('$label must contain at least $minLength characters.');
+      buffer.writeln('    }');
+    }
+    final maxLength = properties['maxLength'];
+    if (maxLength is num) {
+      buffer.writeln('    if ($textVariable.length > $maxLength) {');
+      failure('$label cannot exceed $maxLength characters.');
+      buffer.writeln('    }');
+    }
+    final pattern = properties['pattern'];
+    if (pattern is String && pattern.isNotEmpty) {
+      buffer.writeln(
+        '    if (!RegExp(${_string(pattern)}).hasMatch($textVariable)) {',
+      );
+      failure('$label has an invalid format.');
+      buffer.writeln('    }');
+    }
+    switch (parameter.type) {
+      case 'int':
+        buffer.writeln('    final $variable = int.tryParse($textVariable);');
+      case 'double':
+        buffer.writeln(
+          '    final $variable = double.tryParse($textVariable);',
+        );
+      case 'num':
+        buffer.writeln('    final $variable = num.tryParse($textVariable);');
+      case 'bool':
+        buffer.writeln(
+          "    final ${variable}IsValid = $textVariable.toLowerCase() == 'true' || "
+          "$textVariable.toLowerCase() == 'false';",
+        );
+        buffer.writeln('    if (!${variable}IsValid) {');
+        failure('$label must be true or false.');
+        buffer.writeln('    }');
+        buffer.writeln(
+          "    final $variable = $textVariable.toLowerCase() == 'true';",
+        );
+        return buffer.toString();
+      default:
+        buffer.writeln('    final $variable = $textVariable;');
+        return buffer.toString();
+    }
+    buffer.writeln('    if ($variable == null) {');
+    failure('$label must be a valid ${parameter.type}.');
+    buffer.writeln('    }');
+    return buffer.toString();
+  }
+
+  String _actionErrorExpression(StudioActionDescriptor action) =>
+      switch (config.stateManagement) {
+        StateManagementType.riverpod => 'ref.read(${action.target}).error',
+        StateManagementType.provider =>
+          'context.read<${action.target}>().state.error',
+        StateManagementType.bloc =>
+          'context.read<${action.target}>().state.error',
+        StateManagementType.getx =>
+          'Get.find<${action.target}>().state.value.error',
+        StateManagementType.none => 'null',
+      };
+
+  bool _hasBoundInputs(StudioActionDescriptor action) {
+    final bindings = _nodes(schema.root)
+        .map((node) => node.action)
+        .whereType<UiActionBinding>()
+        .where(
+          (item) => item.actionId == action.id && item.method != 'watch',
+        );
+    final binding = bindings.isEmpty ? null : bindings.first;
+    return binding?.arguments.values.any(
+          (value) => _fieldReference(value) != null,
+        ) ??
+        false;
+  }
+
+  String? _fieldReference(Object? value) {
+    if (value is! String ||
+        !value.startsWith(r'$') ||
+        !value.endsWith('.value')) {
+      return null;
+    }
+    return value.substring(1, value.length - '.value'.length);
   }
 
   String _decoration(Map<String, Object?> properties) {

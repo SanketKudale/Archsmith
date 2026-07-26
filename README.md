@@ -206,7 +206,9 @@ archsmith studio
 archsmith studio --port 7332 --no-open
 ```
 
-Studio provides a searchable reusable-component palette, drag-and-drop component tree, phone/tablet/desktop previews, a property inspector, undo/redo and duplication controls, and a searchable API-action selector. Existing nodes can be moved between compatible parents directly on the canvas. Request arguments can use literal values or bind to an input with `$field_id.value`. Loading indicators and state text select from the generated `isLoading`, `data`, `error`, and `isEmpty` contract.
+Studio provides a searchable reusable-component palette, drag-and-drop component tree, phone/tablet/desktop previews, a property inspector, undo/redo and duplication controls, and a searchable API-action selector. Existing nodes can be moved between compatible parents directly on the canvas. API parameters offer compatible input fields in a dropdown and automatically match similarly named fields; literal values remain available. Loading indicators and state text select from the generated `isLoading`, `data`, `error`, and `isEmpty` contract.
+
+Text fields support generated required, minimum-length, maximum-length, regular-expression, trimming, and custom-message validation. Numeric and boolean request values are safely converted before calling the provider/controller. When a button has a success route, generated code checks the action state after execution and navigates only when no backend error was reported.
 
 The editable, versioned screen source is stored in `.archsmith/ui/<screen>.json`. Generate or validate the same source without opening a browser:
 

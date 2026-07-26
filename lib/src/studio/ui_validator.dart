@@ -48,6 +48,16 @@ class UiSchemaValidator {
       }
     }
     final actionsById = {for (final action in actions) action.id: action};
+    final nodesById = <String, UiNode>{};
+
+    void collect(UiNode node) {
+      nodesById[node.id] = node;
+      for (final child in node.children) {
+        collect(child);
+      }
+    }
+
+    collect(schema.root);
 
     void visit(UiNode node, String path) {
       if (!ids.add(node.id)) {
@@ -86,13 +96,50 @@ class UiSchemaValidator {
           );
         } else {
           if (binding.method != 'watch') {
-            for (final parameter
-                in action.parameters.where((item) => item.required)) {
+            for (final parameter in action.parameters) {
               if (!binding.arguments.containsKey(parameter.name)) {
+                if (parameter.required) {
+                  issues.add(
+                    UiValidationIssue(
+                      '$path.action.arguments',
+                      'Missing required argument ${parameter.name}.',
+                    ),
+                  );
+                }
+                continue;
+              }
+              final value = binding.arguments[parameter.name];
+              final fieldId = _fieldReference(value);
+              if (fieldId != null) {
+                final field = nodesById[fieldId];
+                if (field == null) {
+                  issues.add(
+                    UiValidationIssue(
+                      '$path.action.arguments.${parameter.name}',
+                      'Unknown input field $fieldId.',
+                    ),
+                  );
+                } else if (field.type != 'appTextField') {
+                  issues.add(
+                    UiValidationIssue(
+                      '$path.action.arguments.${parameter.name}',
+                      '$fieldId is not an appTextField.',
+                    ),
+                  );
+                } else if (!_isPrimitive(parameter.type)) {
+                  issues.add(
+                    UiValidationIssue(
+                      '$path.action.arguments.${parameter.name}',
+                      '${parameter.type} requires structured entity mapping.',
+                    ),
+                  );
+                }
+              } else if (!_literalMatches(value, parameter.type)) {
                 issues.add(
                   UiValidationIssue(
-                    '$path.action.arguments',
-                    'Missing required argument ${parameter.name}.',
+                    '$path.action.arguments.${parameter.name}',
+                    'Expected ${parameter.type}, received '
+                        '${value?.runtimeType ?? 'null'}.',
                   ),
                 );
               }
@@ -108,4 +155,29 @@ class UiSchemaValidator {
     visit(schema.root, 'root');
     return List.unmodifiable(issues);
   }
+}
+
+String? _fieldReference(Object? value) {
+  if (value is! String ||
+      !value.startsWith(r'$') ||
+      !value.endsWith('.value')) {
+    return null;
+  }
+  return value.substring(1, value.length - '.value'.length);
+}
+
+bool _isPrimitive(String type) =>
+    const {'String', 'int', 'double', 'num', 'bool', 'dynamic'}.contains(type);
+
+bool _literalMatches(Object? value, String type) {
+  if (value == null) return false;
+  return switch (type) {
+    'String' => value is String,
+    'int' => value is int,
+    'double' => value is num,
+    'num' => value is num,
+    'bool' => value is bool,
+    'dynamic' => true,
+    _ => false,
+  };
 }

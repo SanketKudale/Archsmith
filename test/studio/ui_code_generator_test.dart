@@ -40,7 +40,19 @@ void main() {
               UiNode(
                 id: 'account_number',
                 type: 'appTextField',
-                properties: {'label': 'Account number'},
+                properties: {
+                  'label': 'Account number',
+                  'required': true,
+                  'minLength': 6,
+                },
+              ),
+              UiNode(
+                id: 'closing_reason',
+                type: 'appTextField',
+                properties: {
+                  'label': 'Closing reason',
+                  'valueType': 'int',
+                },
               ),
               UiNode(
                 id: 'submit',
@@ -50,8 +62,9 @@ void main() {
                   actionId: 'cusacc.accountDeactivate',
                   arguments: {
                     'fullAccountNumber': r'$account_number.value',
-                    'closingReason': 1,
+                    'closingReason': r'$closing_reason.value',
                   },
+                  onSuccessRoute: '/done',
                 ),
               ),
             ],
@@ -77,9 +90,18 @@ void main() {
     );
     expect(
       generated,
-      contains('fullAccountNumber: _accountNumberController.text'),
+      contains(
+        'fullAccountNumber: '
+        '_cusaccAccountDeactivateFullAccountNumberValue',
+      ),
     );
-    expect(generated, contains('closingReason: 1'));
+    expect(generated, contains('int.tryParse'));
+    expect(generated, contains("Account number is required."));
+    expect(generated, contains('ref.read(accountDeactivateProvider).error'));
+    expect(
+      generated,
+      contains("Navigator.of(context).pushNamed('/done')"),
+    );
     expect(
       files.singleWhere((file) => file.path.endsWith('_page.dart')).content,
       contains('created once and is never regenerated'),

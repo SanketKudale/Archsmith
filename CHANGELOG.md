@@ -15,6 +15,8 @@
   properties and child contracts.
 - Added canvas node movement, undo/redo, duplication, keyboard editing, and
   dropdown-based generated state bindings.
+- Added automatic form-field matching, generated input validation, safe typed
+  request conversion, and error-aware success navigation.
 
 ## 0.3.0 - 2026-07-26
 

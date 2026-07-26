@@ -125,4 +125,47 @@ void main() {
       isEmpty,
     );
   });
+
+  test('reports unknown fields and incompatible action literals', () {
+    const schema = UiScreenSchema(
+      name: 'invalid_binding',
+      root: UiNode(
+        id: 'submit',
+        type: 'appButton',
+        action: UiActionBinding(
+          actionId: 'items.load',
+          arguments: {
+            'count': r'$missing.value',
+            'enabled': 'yes',
+          },
+        ),
+      ),
+    );
+    const action = StudioActionDescriptor(
+      id: 'items.load',
+      feature: 'items',
+      operation: 'load',
+      stateManagement: 'riverpod',
+      target: 'loadProvider',
+      method: 'execute',
+      requestType: 'LoadRequestEntity',
+      parameters: [
+        StudioActionParameter(name: 'count', type: 'int'),
+        StudioActionParameter(name: 'enabled', type: 'bool'),
+      ],
+    );
+
+    final issues = const UiSchemaValidator().validate(
+      schema,
+      actions: const [action],
+    );
+
+    expect(
+      issues.map((issue) => issue.message),
+      containsAll([
+        'Unknown input field missing.',
+        'Expected bool, received String.',
+      ]),
+    );
+  });
 }

@@ -237,15 +237,49 @@ function renderActions(filter=''){
 }
 function renderArguments(){
   const host=$('arguments');host.innerHTML='';const action=bootstrap.actions.find(a=>a.id===selected?.action?.action_id);if(!action)return;
+  const fields=allNodes(schema.root).filter(node=>node.type==='appTextField');
   action.parameters.forEach(parameter=>{
     const label=document.createElement('label');label.textContent=`${parameter.name} · ${parameter.type}`;
-    const input=document.createElement('input');input.value=selected.action.arguments?.[parameter.name]??'';
-    input.placeholder='$field_id.value or literal';
+    const current=selected.action.arguments?.[parameter.name], sourceId=fieldSource(current);
+    const source=document.createElement('select');source.add(new Option('Literal value',''));
+    if(['String','int','double','num','bool','dynamic'].includes(parameter.type)){
+      fields.forEach(field=>source.add(new Option(`Field: ${field.properties?.label||field.id}`,field.id)));
+    }
+    source.value=sourceId||'';
+    const input=document.createElement('input');input.value=sourceId?'':current??'';
+    input.placeholder=`Literal ${parameter.type} value`;input.hidden=!!sourceId;
+    source.onchange=()=>{
+      checkpoint();selected.action.arguments||={};input.hidden=!!source.value;
+      selected.action.arguments[parameter.name]=source.value?`$${source.value}.value`:typedValue(input.value,parameter.type);
+    };
     input.onchange=()=>{checkpoint();selected.action.arguments||={};selected.action.arguments[parameter.name]=typedValue(input.value,parameter.type)};
-    label.appendChild(input);label.insertAdjacentHTML('beforeend','<div class="arg-help">Use $text_field_id.value to bind input.</div>');host.appendChild(label);
+    label.appendChild(source);label.appendChild(input);
+    if(!['String','int','double','num','bool','dynamic'].includes(parameter.type))label.insertAdjacentHTML('beforeend','<div class="arg-help">Structured entity mapping will require a nested request component.</div>');
+    host.appendChild(label);
   });
 }
-function typedValue(value,type){if(value.startsWith('$'))return value;if(type==='int')return parseInt(value);if(type==='double'||type==='num')return Number(value);if(type==='bool')return value==='true';return value}
+function allNodes(root){return [root,...(root.children||[]).flatMap(allNodes)]}
+function fieldSource(value){const match=typeof value==='string'&&value.match(/^\$(.+)\.value$/);return match?match[1]:null}
+function normalize(value){return `${value||''}`.toLowerCase().replace(/[^a-z0-9]/g,'')}
+function defaultArguments(action){
+  const fields=allNodes(schema.root).filter(node=>node.type==='appTextField'), result={};
+  action.parameters.forEach(parameter=>{
+    const parameterName=normalize(parameter.name);
+    const exact=fields.find(field=>[field.id,field.properties?.label].some(value=>normalize(value)===parameterName));
+    const related=fields.find(field=>[field.id,field.properties?.label].some(value=>parameterName.endsWith(normalize(value))||normalize(value).endsWith(parameterName)));
+    const field=exact||related||(action.parameters.length===1&&fields.length===1?fields[0]:null);
+    result[parameter.name]=field?`$${field.id}.value`:defaultLiteral(parameter.type);
+  });
+  return result;
+}
+function defaultLiteral(type){if(type==='String'||type==='dynamic')return '';if(type==='bool')return false;return null}
+function typedValue(value,type){
+  if(value.startsWith('$'))return value;
+  if(type==='int'){const parsed=parseInt(value);return Number.isNaN(parsed)?null:parsed}
+  if(type==='double'||type==='num'){const parsed=Number(value);return value.trim()===''||Number.isNaN(parsed)?null:parsed}
+  if(type==='bool')return value.toLowerCase()==='true';
+  return value;
+}
 
 function bindControls(){
   $('componentSearch').oninput=e=>renderPalette(e.target.value);
@@ -263,7 +297,7 @@ function bindControls(){
   $('nodeId').onchange=e=>{checkpoint();selected.id=e.target.value;render()};
   $('breakpointOverride').onchange=renderInspector;
   $('actionSearch').oninput=e=>renderActions(e.target.value);
-  $('actionSelect').onchange=e=>{checkpoint();const watches=selected.type==='appLoadingIndicator'||selected.type==='stateText';selected.action=e.target.value?{action_id:e.target.value,method:watches?'watch':'execute',arguments:{}}:undefined;renderInspector()};
+  $('actionSelect').onchange=e=>{checkpoint();const watches=selected.type==='appLoadingIndicator'||selected.type==='stateText',action=bootstrap.actions.find(item=>item.id===e.target.value);selected.action=action?{action_id:action.id,method:watches?'watch':'execute',arguments:watches?{}:defaultArguments(action)}:undefined;renderInspector()};
   $('successRoute').onchange=e=>{if(selected.action){checkpoint();selected.action.on_success_route=e.target.value||undefined}};
   $('undo').onclick=undo;$('redo').onclick=redo;$('duplicate').onclick=duplicateSelected;
   $('remove').onclick=removeSelected;
