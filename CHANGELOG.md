@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0-dev.1 - 2026-07-27
 
 - Added a local responsive drag-and-drop Studio with reusable components,
   breakpoint previews, property editing, and searchable API actions.
