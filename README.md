@@ -54,6 +54,14 @@ archsmith model payment --feature payments --no-tests
 archsmith widget profile_card
 archsmith api path/to/cusacc.json
 archsmith api-dir path/to/jsons
+archsmith branding --name "My App" --logo assets/source/logo.svg \
+  --icon assets/source/icon.png
+archsmith flavor create staging --app-name "My App Staging" \
+  --application-id com.example.myapp.staging \
+  --dart-define API_URL=https://staging.example.com
+archsmith flavor run staging
+archsmith flavor release production --type appbundle --obfuscate \
+  --split-debug-info build/symbols/production
 ```
 
 ## Architectures and integrations
@@ -70,6 +78,8 @@ archsmith init
 archsmith api <endpoint.json>
 archsmith api-dir <json-directory>
 archsmith api-common <operation> ...
+archsmith branding [--name <display-name>] [--logo <path>] [--icon <png>] [--project <path>]
+archsmith flavor <create|sync|run|build|release> [flavor]
 archsmith feature <feature_name>
 archsmith page <page_name>
 archsmith model <model_name>
@@ -82,6 +92,81 @@ archsmith doctor
 ```
 
 Generators accept `--feature`, `--dry-run`, `--force`, `--skip-existing`, `--tests`, and `--no-tests` where relevant. Existing differing files become conflicts unless `--force` or `--skip-existing` is explicit. A dry run performs no writes and prints `CREATE`, `UPDATE`, `SKIP`, and `CONFLICT` entries.
+
+## Application branding
+
+Update an existing Flutter project's user-facing name, in-app logo asset, and
+launcher icon:
+
+```shell
+archsmith branding --name "Acme Wallet" \
+  --logo design/acme_logo.svg \
+  --icon design/acme_icon.png
+```
+
+`--name` updates available Android, iOS, macOS, web, Windows, and Linux display
+metadata without renaming the Dart package or changing imports. `--logo` copies
+the source file to `assets/branding/` and registers that directory in
+`pubspec.yaml`. `--icon` requires PNG input, configures
+`flutter_launcher_icons`, installs it as a development dependency, and
+generates Android, iOS, macOS, web, and Windows launcher icons. Use
+`--dry-run` to preview affected paths without changing files or running Flutter
+tools.
+
+Use `--project path/to/app` to update a Flutter project outside the current
+directory.
+
+## Flavor variants and releases
+
+Create development, staging, and production variants with separate display
+names, application IDs, icons, and compile-time environment values:
+
+```shell
+archsmith flavor create development \
+  --app-name "Acme Wallet Dev" \
+  --application-id com.acme.wallet.dev \
+  --dart-define API_URL=https://dev-api.example.com
+
+archsmith flavor create staging \
+  --app-name "Acme Wallet Staging" \
+  --application-id com.acme.wallet.staging \
+  --dart-define API_URL=https://staging-api.example.com
+
+archsmith flavor create production \
+  --app-name "Acme Wallet" \
+  --application-id com.acme.wallet \
+  --dart-define API_URL=https://api.example.com \
+  --default
+```
+
+Each create updates `.archsmith/flavors.json`, `flavorizr.yaml`, and
+`FlavorConfig`, then uses `flutter_flavorizr` to generate native projects.
+Android configuration is generated wherever Android exists; iOS and macOS
+configuration is generated when `flavor sync` runs on macOS.
+
+Run a selected variant:
+
+```shell
+archsmith flavor run development
+archsmith flavor run staging --device emulator-5554
+archsmith flavor run production --mode release
+```
+
+Build flavor-specific artifacts:
+
+```shell
+archsmith flavor build staging --type apk --mode debug
+archsmith flavor build staging --type appbundle --mode release
+archsmith flavor release production --type appbundle
+archsmith flavor release production --type appbundle --obfuscate \
+  --split-debug-info build/symbols/production
+```
+
+Supported build types are `apk`, `appbundle`, `ios`, `ipa`, `web`, `windows`,
+`macos`, and `linux`. `release` always selects Flutter release mode. Use
+`--dry-run` to preview setup, run, or build commands. Dart defines are stored
+in source-controlled flavor configuration; do not use them for passwords,
+private keys, or other secrets.
 
 ## Configuration reference
 

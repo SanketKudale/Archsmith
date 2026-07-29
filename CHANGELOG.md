@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0 - 2026-07-29
+
+- Consolidated endpoint dependency injection into one API provider that wires
+  the notifier, use case, repository, and remote data source.
+- Added `archsmith branding` for cross-platform display names, registered logo
+  assets, and generated launcher icons.
+- Added `archsmith flavor create` and `flavor sync` for native Android, iOS,
+  and macOS variants with names, application IDs, icons, and Dart defines.
+- Added flavor-aware `run`, `build`, and production `release` commands,
+  including obfuscation and split-debug-info support.
+- Added platform-safe dry runs, external project targeting, runtime
+  `FlavorConfig`, and full CLI/service test coverage.
+
 ## 0.3.0 - 2026-07-26
 
 - Added endpoint-example JSON inference and full Clean Architecture API feature
