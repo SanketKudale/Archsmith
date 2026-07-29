@@ -170,7 +170,7 @@ The JSON filename becomes the feature name when `--feature` is omitted. Request 
 - domain repository and data repository implementation;
 - use case;
 - state and notifier;
-- separate datasource, repository, use-case, and state-notifier provider files;
+- one API provider that wires the data source, repository, use case, and state notifier;
 - common network client and request-context providers;
 - centralized success/error response handling.
 

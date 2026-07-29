@@ -56,14 +56,19 @@ void main() {
         'lib/features/cusacc/domain/repositories/cusacc_repository.dart',
         'lib/features/cusacc/domain/usecases/account_deactivate_use_case.dart',
         'lib/features/cusacc/presentation/states/account_deactivate_state.dart',
-        'lib/features/cusacc/presentation/providers/account_deactivate_data_source_provider.dart',
-        'lib/features/cusacc/presentation/providers/account_deactivate_repository_provider.dart',
-        'lib/features/cusacc/presentation/providers/account_deactivate_use_case_provider.dart',
         'lib/features/cusacc/presentation/providers/account_deactivate_provider.dart',
         'lib/core/network/auth/api_request_coordinator.dart',
         'lib/core/network/cache/api_response_cache.dart',
         'lib/core/network/cache/memory_api_response_cache.dart',
       }),
+    );
+    expect(
+      paths,
+      isNot(
+        contains(
+          'lib/features/cusacc/presentation/providers/account_deactivate_data_source_provider.dart',
+        ),
+      ),
     );
     final responseModel = files
         .singleWhere(
@@ -122,6 +127,25 @@ void main() {
           )
           .content;
       expect(provider, isNotEmpty, reason: stateManagement.value);
+      expect(
+        provider,
+        contains('CusaccRepositoryImpl'),
+        reason: stateManagement.value,
+      );
+      expect(
+        files
+            .where(
+              (file) =>
+                  file.path.contains('/presentation/providers/') &&
+                  file.path.startsWith('lib/features/'),
+            )
+            .map((file) => file.path),
+        [
+          'lib/features/cusacc/presentation/providers/account_deactivate_notifier.dart',
+          'lib/features/cusacc/presentation/providers/account_deactivate_provider.dart',
+        ],
+        reason: stateManagement.value,
+      );
       expect(
         files.map((file) => file.path),
         contains(

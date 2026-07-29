@@ -116,35 +116,13 @@ class CleanApiFeatureGenerator {
         _responseCacheProvider(config.stateManagement, common),
       ),
       PlannedFile(
-        '$root/presentation/providers/${operation.snakeCase}_data_source_provider.dart',
-        _dataSourceProvider(
-          config.projectName,
-          featureName,
-          operation,
-          config.stateManagement,
-        ),
-      ),
-      PlannedFile(
-        '$root/presentation/providers/${operation.snakeCase}_repository_provider.dart',
-        _repositoryProvider(
-          config.projectName,
-          featureName,
-          operation,
-          config.stateManagement,
-        ),
-      ),
-      PlannedFile(
-        '$root/presentation/providers/${operation.snakeCase}_use_case_provider.dart',
-        _useCaseProvider(
-          config.projectName,
-          featureName,
-          operation,
-          config.stateManagement,
-        ),
-      ),
-      PlannedFile(
         '$root/presentation/providers/${operation.snakeCase}_provider.dart',
-        _operationProvider(operation, config.stateManagement),
+        _operationProvider(
+          config.projectName,
+          featureName,
+          operation,
+          config.stateManagement,
+        ),
       ),
     ];
   }
@@ -520,14 +498,15 @@ class CleanApiFeatureGenerator {
     };
   }
 
-  String _dataSourceProvider(
+  String _operationProvider(
     String project,
     String feature,
     NameVariants operation,
     StateManagementType stateManagement,
   ) {
     final prefix = operation.pascalCase;
-    final typeImports = stateManagement == StateManagementType.riverpod
+    final repository = names(feature).pascalCase;
+    final coreImports = stateManagement == StateManagementType.riverpod
         ? "import 'package:$project/core/network/providers/api_request_context_provider.dart';\n"
             "import 'package:$project/core/network/providers/api_request_coordinator_provider.dart';\n"
             "import 'package:$project/core/network/providers/api_response_cache_provider.dart';\n"
@@ -536,125 +515,65 @@ class CleanApiFeatureGenerator {
             "import 'package:$project/core/network/cache/api_response_cache.dart';\n"
             "import 'package:$project/core/network/generated/api_request_context.dart';\n"
             "import 'package:$project/core/network/network_client.dart';\n";
-    final imports = "$typeImports"
-        "import '../../data/datasources/${operation.snakeCase}_remote_data_source.dart';\n\n";
-    return switch (stateManagement) {
-      StateManagementType.riverpod =>
-        "import 'package:flutter_riverpod/flutter_riverpod.dart';\n"
-            "$imports"
-            "final ${operation.camelCase}DataSourceProvider = Provider<${prefix}RemoteDataSource>((ref) => ${prefix}RemoteDataSource(ref.watch(networkClientProvider), context: ref.watch(apiRequestContextProvider), coordinator: ref.watch(apiRequestCoordinatorProvider), cache: ref.watch(apiResponseCacheProvider)));\n",
-      StateManagementType.provider => "import 'package:provider/provider.dart';\n"
-          "$imports"
-          "final ${operation.camelCase}DataSourceProvider = ProxyProvider4<NetworkClient, ApiRequestContext, ApiRequestCoordinator, ApiResponseCache, ${prefix}RemoteDataSource>(update: (_, client, context, coordinator, cache, __) => ${prefix}RemoteDataSource(client, context: context, coordinator: coordinator, cache: cache));\n",
-      StateManagementType.bloc =>
-        "import 'package:flutter_bloc/flutter_bloc.dart';\n"
-            "$imports"
-            "final ${operation.camelCase}DataSourceProvider = RepositoryProvider<${prefix}RemoteDataSource>(create: (context) => ${prefix}RemoteDataSource(context.read<NetworkClient>(), context: context.read<ApiRequestContext>(), coordinator: context.read<ApiRequestCoordinator>(), cache: context.read<ApiResponseCache>()));\n",
-      StateManagementType.getx => "import 'package:get/get.dart';\n"
-          "$imports"
-          "class ${prefix}DataSourceBinding { static void register() => Get.lazyPut<${prefix}RemoteDataSource>(() => ${prefix}RemoteDataSource(Get.find<NetworkClient>(), context: Get.find<ApiRequestContext>(), coordinator: Get.find<ApiRequestCoordinator>(), cache: Get.find<ApiResponseCache>())); }\n",
-      StateManagementType.none => "$imports"
-          "${prefix}RemoteDataSource create${prefix}DataSource(NetworkClient client, ApiRequestContext context, ApiRequestCoordinator coordinator, ApiResponseCache cache) => ${prefix}RemoteDataSource(client, context: context, coordinator: coordinator, cache: cache);\n",
-    };
-  }
-
-  String _repositoryProvider(
-    String project,
-    String feature,
-    NameVariants operation,
-    StateManagementType stateManagement,
-  ) {
-    final repository = names(feature).pascalCase;
-    final typeImport = stateManagement == StateManagementType.riverpod
-        ? "import '${operation.snakeCase}_data_source_provider.dart';\n"
-        : "import '../../data/datasources/${operation.snakeCase}_remote_data_source.dart';\n";
-    final imports = "$typeImport"
-        "import '../../data/repositories/${feature}_repository_impl.dart';\n"
-        "import '../../domain/repositories/${feature}_repository.dart';\n\n";
-    return switch (stateManagement) {
-      StateManagementType.riverpod =>
-        "import 'package:flutter_riverpod/flutter_riverpod.dart';\n"
-            "$imports"
-            "final ${operation.camelCase}RepositoryProvider = Provider<${repository}Repository>((ref) => ${repository}RepositoryImpl(ref.watch(${operation.camelCase}DataSourceProvider)));\n",
-      StateManagementType.provider => "import 'package:provider/provider.dart';\n"
-          "$imports"
-          "final ${operation.camelCase}RepositoryProvider = ProxyProvider<${operation.pascalCase}RemoteDataSource, ${repository}Repository>(update: (_, source, __) => ${repository}RepositoryImpl(source));\n",
-      StateManagementType.bloc =>
-        "import 'package:flutter_bloc/flutter_bloc.dart';\n"
-            "$imports"
-            "final ${operation.camelCase}RepositoryProvider = RepositoryProvider<${repository}Repository>(create: (context) => ${repository}RepositoryImpl(context.read<${operation.pascalCase}RemoteDataSource>()));\n",
-      StateManagementType.getx => "import 'package:get/get.dart';\n"
-          "$imports"
-          "class ${repository}Binding { static void register() => Get.lazyPut<${repository}Repository>(() => ${repository}RepositoryImpl(Get.find())); }\n",
-      StateManagementType.none => "$imports"
-          "${repository}Repository create${repository}Repository(${operation.pascalCase}RemoteDataSource source) => ${repository}RepositoryImpl(source);\n",
-    };
-  }
-
-  String _useCaseProvider(
-    String project,
-    String feature,
-    NameVariants operation,
-    StateManagementType stateManagement,
-  ) {
-    final prefix = operation.pascalCase;
-    final typeImport = stateManagement == StateManagementType.riverpod
-        ? "import '${operation.snakeCase}_repository_provider.dart';\n"
-        : "import '../../domain/repositories/${feature}_repository.dart';\n";
-    final imports = "$typeImport"
-        "import '../../domain/usecases/${operation.snakeCase}_use_case.dart';\n\n";
-    final repository = names(feature).pascalCase;
-    return switch (stateManagement) {
-      StateManagementType.riverpod =>
-        "import 'package:flutter_riverpod/flutter_riverpod.dart';\n"
-            "$imports"
-            "final ${operation.camelCase}UseCaseProvider = Provider<${prefix}UseCase>((ref) => ${prefix}UseCase(ref.watch(${operation.camelCase}RepositoryProvider)));\n",
-      StateManagementType.provider => "import 'package:provider/provider.dart';\n"
-          "$imports"
-          "final ${operation.camelCase}UseCaseProvider = ProxyProvider<${repository}Repository, ${prefix}UseCase>(update: (_, repository, __) => ${prefix}UseCase(repository));\n",
-      StateManagementType.bloc =>
-        "import 'package:flutter_bloc/flutter_bloc.dart';\n"
-            "$imports"
-            "final ${operation.camelCase}UseCaseProvider = RepositoryProvider<${prefix}UseCase>(create: (context) => ${prefix}UseCase(context.read<${repository}Repository>()));\n",
-      StateManagementType.getx => "import 'package:get/get.dart';\n"
-          "$imports"
-          "class ${prefix}UseCaseBinding { static void register() => Get.lazyPut<${prefix}UseCase>(() => ${prefix}UseCase(Get.find())); }\n",
-      StateManagementType.none => "$imports"
-          "${prefix}UseCase create${prefix}UseCase(${repository}Repository repository) => ${prefix}UseCase(repository);\n",
-    };
-  }
-
-  String _operationProvider(
-    NameVariants operation,
-    StateManagementType stateManagement,
-  ) {
-    final prefix = operation.pascalCase;
-    final typeImport = stateManagement == StateManagementType.riverpod
-        ? "import '${operation.snakeCase}_use_case_provider.dart';\n"
-        : "import '../../domain/usecases/${operation.snakeCase}_use_case.dart';\n";
     final stateImport = stateManagement == StateManagementType.riverpod
         ? "import '../states/${operation.snakeCase}_state.dart';\n"
         : '';
-    final imports = "$typeImport"
+    final imports = "$coreImports"
+        "import '../../data/datasources/${operation.snakeCase}_remote_data_source.dart';\n"
+        "import '../../data/repositories/${feature}_repository_impl.dart';\n"
+        "import '../../domain/usecases/${operation.snakeCase}_use_case.dart';\n"
         "$stateImport"
         "import '${operation.snakeCase}_notifier.dart';\n\n";
+    final dataSource =
+        "${prefix}RemoteDataSource(client, context: context, coordinator: coordinator, cache: cache)";
+    final notifier =
+        "${prefix}Notifier(${prefix}UseCase(${repository}RepositoryImpl($dataSource)))";
     return switch (stateManagement) {
       StateManagementType.riverpod =>
         "import 'package:flutter_riverpod/flutter_riverpod.dart';\n"
             "$imports"
-            "final ${operation.camelCase}Provider = StateNotifierProvider<${prefix}Notifier, ${prefix}State>((ref) => ${prefix}Notifier(ref.watch(${operation.camelCase}UseCaseProvider)));\n",
+            "final ${operation.camelCase}Provider = StateNotifierProvider<${prefix}Notifier, ${prefix}State>((ref) {\n"
+            "  final client = ref.watch(networkClientProvider);\n"
+            "  final context = ref.watch(apiRequestContextProvider);\n"
+            "  final coordinator = ref.watch(apiRequestCoordinatorProvider);\n"
+            "  final cache = ref.watch(apiResponseCacheProvider);\n"
+            "  return $notifier;\n"
+            "});\n",
       StateManagementType.provider => "import 'package:provider/provider.dart';\n"
           "$imports"
-          "final ${operation.camelCase}Provider = ChangeNotifierProvider<${prefix}Notifier>(create: (context) => ${prefix}Notifier(context.read<${prefix}UseCase>()));\n",
+          "final ${operation.camelCase}Provider = ChangeNotifierProxyProvider4<NetworkClient, ApiRequestContext, ApiRequestCoordinator, ApiResponseCache, ${prefix}Notifier>(\n"
+          "  create: (buildContext) => ${prefix}Notifier(${prefix}UseCase(${repository}RepositoryImpl(${prefix}RemoteDataSource(buildContext.read<NetworkClient>(), context: buildContext.read<ApiRequestContext>(), coordinator: buildContext.read<ApiRequestCoordinator>(), cache: buildContext.read<ApiResponseCache>())))),\n"
+          "  update: (_, client, context, coordinator, cache, previous) {\n"
+          "    final useCase = ${prefix}UseCase(${repository}RepositoryImpl($dataSource));\n"
+          "    if (previous == null) return ${prefix}Notifier(useCase);\n"
+          "    previous.useCase = useCase;\n"
+          "    return previous;\n"
+          "  },\n"
+          ");\n",
       StateManagementType.bloc =>
         "import 'package:flutter_bloc/flutter_bloc.dart';\n"
             "$imports"
-            "final ${operation.camelCase}Provider = BlocProvider<${prefix}Cubit>(create: (context) => ${prefix}Cubit(context.read<${prefix}UseCase>()));\n",
+            "final ${operation.camelCase}Provider = BlocProvider<${prefix}Cubit>(create: (buildContext) {\n"
+            "  final client = buildContext.read<NetworkClient>();\n"
+            "  final context = buildContext.read<ApiRequestContext>();\n"
+            "  final coordinator = buildContext.read<ApiRequestCoordinator>();\n"
+            "  final cache = buildContext.read<ApiResponseCache>();\n"
+            "  return ${prefix}Cubit(${prefix}UseCase(${repository}RepositoryImpl($dataSource)));\n"
+            "});\n",
       StateManagementType.getx => "import 'package:get/get.dart';\n"
           "$imports"
-          "class ${prefix}Binding extends Bindings { @override void dependencies() => Get.lazyPut<${prefix}Controller>(() => ${prefix}Controller(Get.find())); }\n",
+          "class ${prefix}Binding extends Bindings {\n"
+          "  @override\n"
+          "  void dependencies() => Get.lazyPut<${prefix}Controller>(() {\n"
+          "    final client = Get.find<NetworkClient>();\n"
+          "    final context = Get.find<ApiRequestContext>();\n"
+          "    final coordinator = Get.find<ApiRequestCoordinator>();\n"
+          "    final cache = Get.find<ApiResponseCache>();\n"
+          "    return ${prefix}Controller(${prefix}UseCase(${repository}RepositoryImpl($dataSource)));\n"
+          "  });\n"
+          "}\n",
       StateManagementType.none => "$imports"
-          "${prefix}Notifier create${prefix}Notifier(${prefix}UseCase useCase) => ${prefix}Notifier(useCase);\n",
+          "${prefix}Notifier create${prefix}Notifier(NetworkClient client, ApiRequestContext context, ApiRequestCoordinator coordinator, ApiResponseCache cache) => $notifier;\n",
     };
   }
 }
