@@ -1,9 +1,9 @@
 name: archsmith
 description: Interactive, safe Flutter architecture and feature generator.
 version: 0.4.0
-repository: https://github.com/SanketKudale/Archsmith
+repository: https://github.com/SanketKudale/archsmith
 homepage: https://sanketkudale.github.io/archsmith/
-issue_tracker: https://github.com/SanketKudale/Archsmith/issues
+issue_tracker: https://github.com/SanketKudale/archsmith/issues
 topics:
   - flutter
   - cli
