@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Archsmith — Forge maintainable Flutter architecture</title>
+    <meta name="description" content="Archsmith is a free, open-source Dart CLI for safely creating and evolving maintainable Flutter project architectures.">
+    <meta name="theme-color" content="#080b18">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Archsmith — Forge maintainable Flutter architecture">
+    <meta property="og:description" content="A deterministic, conflict-aware Dart CLI for creating and evolving Flutter projects.">
+    <meta property="og:url" content="https://sanketkudale.github.io/archsmith/">
+    <meta name="twitter:card" content="summary">
+    <link rel="canonical" href="https://sanketkudale.github.io/archsmith/">
+    <link rel="icon" href="favicon.svg?v=0.4.0" type="image/svg+xml">
+    <link rel="shortcut icon" href="favicon.svg?v=0.4.0">
+    <link rel="stylesheet" href="styles.css">
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Archsmith",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Windows, macOS, Linux",
+        "softwareVersion": "0.4.0",
+        "license": "https://opensource.org/license/mit",
+        "url": "https://sanketkudale.github.io/archsmith/",
+        "downloadUrl": "https://pub.dev/packages/archsmith",
+        "codeRepository": "https://github.com/SanketKudale/Archsmith",
+        "programmingLanguage": "Dart"
+      }
+    </script>
+  </head>
+  <body>
+    <header class="nav-shell">
+      <nav aria-label="Primary navigation">
+        <a class="brand" href="#top"><span class="brand-mark">{◆}</span> Archsmith</a>
+        <div class="nav-links">
+          <a href="#features">Features</a>
+          <a href="#architectures">Architectures</a>
+          <a href="#api">API generation</a>
+          <a href="#install">Install</a>
+          <a href="#workflow">Workflow</a>
+          <a href="https://github.com/SanketKudale/Archsmith">GitHub</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">OPEN-SOURCE FLUTTER ARCHITECTURE CLI</p>
+          <h1>Forge Flutter apps that can grow.</h1>
+          <p class="lead">Archsmith turns architecture decisions into maintainable Flutter projects—deterministically, interactively, and without silently overwriting your work.</p>
+          <div class="actions">
+            <a class="button primary" href="#install">Install Archsmith</a>
+            <a class="button secondary" href="https://github.com/SanketKudale/Archsmith">View source</a>
+          </div>
+          <div class="trust-row">
+            <span>MIT</span><span>Dart 3+</span><span>Flutter 3.10+</span>
+          </div>
+        </div>
+
+        <div class="hero-art" role="img" aria-label="Archsmith terminal generating a clean Flutter feature">
+          <div class="terminal-bar">
+            <span></span><span></span><span></span>
+            <b>archsmith — payments</b>
+          </div>
+          <div class="terminal-body">
+            <p><i>$</i> archsmith feature payments <em>↵</em></p>
+            <p class="muted">Architecture <strong>clean_feature</strong></p>
+            <p class="muted">State <strong>riverpod</strong></p>
+            <div class="tree">
+              <p><span>CREATE</span> lib/features/payments/data/</p>
+              <p><span>CREATE</span> lib/features/payments/domain/</p>
+              <p><span>CREATE</span> lib/features/payments/presentation/</p>
+              <p><span>CREATE</span> test/features/payments/</p>
+            </div>
+            <p class="success">✓ Plan complete · 12 files · 0 conflicts</p>
+          </div>
+          <div class="orbit orbit-one"></div>
+          <div class="orbit orbit-two"></div>
+          <div class="flutter-gem">◆</div>
+        </div>
+      </section>
+
+      <section class="demo section">
+        <div class="section-heading">
+          <p class="eyebrow">DECIDE ONCE, GENERATE CONSISTENTLY</p>
+          <h2>Your architecture, saved as code.</h2>
+          <p>Archsmith records project decisions in <code>archsmith.yaml</code>. Every future feature, page, model, repository, service, use case, controller, and widget follows the same conventions.</p>
+        </div>
+        <div class="config-window">
+          <div class="config-file"><span>archsmith.yaml</span><span>project configuration</span></div>
+          <pre><code><span class="key">project:</span>
+  <span class="key">name:</span> <span class="value">"my_flutter_app"</span>
+<span class="key">architecture:</span>
+  <span class="key">type:</span> <span class="value">"clean_feature"</span>
+<span class="key">state_management:</span>
+  <span class="key">type:</span> <span class="value">"riverpod"</span>
+<span class="key">router:</span>
+  <span class="key">type:</span> <span class="value">"go_router"</span>
+<span class="key">network:</span>
+  <span class="key">type:</span> <span class="value">"dio"</span>
+<span class="key">generation:</span>
+  <span class="key">generate_tests:</span> <span class="bool">true</span>
+  <span class="key">format_after_generation:</span> <span class="bool">true</span></code></pre>
+        </div>
+      </section>
+
+      <section id="features" class="section">
+        <div class="section-heading">
+          <p class="eyebrow">BUILT FOR REAL PROJECTS</p>
+          <h2>Scaffolding that respects your codebase.</h2>
+        </div>
+        <div class="grid features">
+          <article><span>01</span><h3>Conflict-safe by default</h3><p>Preview CREATE, UPDATE, SKIP, and CONFLICT operations. Existing differing files are never silently replaced.</p></article>
+          <article><span>02</span><h3>Architecture-aware</h3><p>Choose feature-first Clean Architecture, layer-first Clean Architecture, MVVM, or a simple feature-first layout.</p></article>
+          <article><span>03</span><h3>Your preferred stack</h3><p>Wire Riverpod, Bloc, Provider, or no state library with GoRouter, AutoRoute, Navigator, Dio, or HTTP.</p></article>
+          <article><span>04</span><h3>API automation</h3><p>Infer typed models, entities, repositories, use cases, state, providers, and network boundaries from real JSON examples.</p></article>
+          <article><span>05</span><h3>Branding and flavors</h3><p>Apply cross-platform names, logos, icons, application IDs, Dart defines, and release configurations.</p></article>
+          <article><span>06</span><h3>Runtime-protection boundary</h3><p>Generate honest, adapter-ready policy and response layers for higher-security mobile applications.</p></article>
+        </div>
+      </section>
+
+      <section id="architectures" class="section">
+        <div class="section-heading">
+          <p class="eyebrow">FIT THE TEAM</p>
+          <h2>Four foundations. One consistent tool.</h2>
+          <p>Start with the structure your project needs today. Archsmith keeps later generation aligned with that decision.</p>
+        </div>
+        <div class="grid architecture-cards">
+          <article><b>01</b><h3>Clean · feature first</h3><p>Data, domain, and presentation grouped inside each feature for scalable product teams.</p></article>
+          <article><b>02</b><h3>Clean · layer first</h3><p>Entities, use cases, repositories, and UI organized by architectural boundary.</p></article>
+          <article><b>03</b><h3>MVVM</h3><p>Views and view models with predictable separation for UI-focused applications.</p></article>
+          <article><b>04</b><h3>Simple feature first</h3><p>A lighter structure that keeps related code together without unnecessary ceremony.</p></article>
+        </div>
+      </section>
+
+      <section id="api" class="section api-section">
+        <div class="section-heading">
+          <p class="eyebrow">FROM EXAMPLE TO FEATURE</p>
+          <h2>Generate the whole API vertical.</h2>
+          <p>Give Archsmith a real request and response example. It infers nested types and emits the complete architecture-aware feature, including retryable presentation state and shared networking concerns.</p>
+        </div>
+        <div class="api-flow" role="img" aria-label="JSON example becomes models, domain, repository, use case, state, and provider">
+          <span>JSON example</span><b>→</b><span>Typed models</span><b>→</b><span>Domain</span><b>→</b><span>Repository</span><b>→</b><span>Use case</span><b>→</b><span>UI state</span>
+        </div>
+        <pre><code>archsmith api path/to/payment.json --feature payments --method POST
+archsmith api-dir path/to/contracts --recursive</code></pre>
+      </section>
+
+      <section id="install" class="section install">
+        <div class="section-heading">
+          <p class="eyebrow">FREE AND OPEN SOURCE</p>
+          <h2>Install Archsmith.</h2>
+          <p>Install globally from pub.dev, then verify your Flutter and Dart toolchain in one command.</p>
+        </div>
+        <div class="install-grid">
+          <article class="install-primary">
+            <div><span>01</span><h3>Activate</h3></div>
+            <pre><code>dart pub global activate archsmith</code></pre>
+          </article>
+          <article>
+            <div><span>02</span><h3>Check your setup</h3></div>
+            <pre><code>archsmith doctor</code></pre>
+          </article>
+          <article>
+            <div><span>03</span><h3>Create a project</h3></div>
+            <pre><code>archsmith create</code></pre>
+          </article>
+          <article>
+            <div><span>04</span><h3>Preview any change</h3></div>
+            <pre><code>archsmith feature payments --dry-run</code></pre>
+          </article>
+        </div>
+      </section>
+
+      <section id="workflow" class="section workflow">
+        <div class="section-heading">
+          <p class="eyebrow">SAFE BY DESIGN</p>
+          <h2>Plan first. Write second.</h2>
+        </div>
+        <div class="architecture-flow" role="img" aria-label="Archsmith reads configuration, creates a deterministic plan, checks conflicts, writes files, and formats the project">
+          <span>Read config</span><b>→</b><span>Build plan</span><b>→</b><span>Check conflicts</span><b>→</b><span>Write files</span><b>→</b><span>Format &amp; analyze</span>
+        </div>
+        <p class="center-note">Archsmith is pre-1.0. Generated code is a reviewable starting point, and runtime-protection checks are never presented as security guarantees.</p>
+      </section>
+
+      <section class="cta">
+        <p class="eyebrow">BUILD WITH INTENTION</p>
+        <h2>Give your next Flutter app a foundation.</h2>
+        <div class="actions centered">
+          <a class="button primary" href="https://pub.dev/packages/archsmith">Get Archsmith</a>
+          <a class="button secondary" href="https://github.com/SanketKudale/Archsmith">Star on GitHub</a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>Archsmith · MIT</span>
+      <span><a href="https://github.com/SanketKudale/Archsmith/issues">Issues</a> · <a href="https://github.com/SanketKudale/Archsmith/releases">Releases</a> · <a href="https://pub.dev/packages/archsmith">pub.dev</a></span>
+    </footer>
+  </body>
+</html>
