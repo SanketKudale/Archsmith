@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://sanketkudale.github.io/archsmith/sitemap.xml

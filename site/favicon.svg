@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Archsmith">
+  <rect width="64" height="64" rx="14" fill="#080b18"/>
+  <path d="M32 8 54 30 32 56 10 30Z" fill="#52e5e7" opacity=".18"/>
+  <path d="M32 11 50 29 32 47 14 29Z" fill="none" stroke="#a78bfa" stroke-width="5" stroke-linejoin="round"/>
+  <path d="m21 30 11 11 11-11-11-11Z" fill="#52e5e7"/>
+  <path d="M32 19v22" stroke="#e8fdff" stroke-width="3" stroke-linecap="round" opacity=".8"/>
+</svg>
