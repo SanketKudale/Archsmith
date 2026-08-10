@@ -47,7 +47,7 @@ void main() {
     expect(
       paths,
       containsAll({
-        'lib/features/cusacc/data/datasources/account_deactivate_remote_data_source.dart',
+        'lib/features/cusacc/data/datasources/cusacc_remote_data_source.dart',
         'lib/features/cusacc/data/models/account_deactivate_request_model.dart',
         'lib/features/cusacc/data/models/account_deactivate_response_model.dart',
         'lib/features/cusacc/data/repositories/cusacc_repository_impl.dart',
@@ -101,12 +101,59 @@ void main() {
     expect(state, contains('Future<void> retry()'));
     final dataSource = files
         .singleWhere(
-          (file) =>
-              file.path.endsWith('account_deactivate_remote_data_source.dart'),
+          (file) => file.path.endsWith('cusacc_remote_data_source.dart'),
         )
         .content;
     expect(dataSource, contains('coordinator.execute'));
     expect(dataSource, contains('cache.read(cacheKey)'));
+  });
+
+  test('adds a new API to the existing feature data source and repositories',
+      () {
+    const generator = CleanApiFeatureGenerator();
+    const config = ArchsmithConfig(projectName: 'sample_app');
+    const common = ApiCommonConfig(baseUrl: 'https://api.example.com');
+    final first = generator.generate(
+      config: config,
+      common: common,
+      endpoint: const JsonApiEndpointReader().fromMap(endpointMap),
+      feature: 'accounts',
+    );
+    final second = generator.generate(
+      config: config,
+      common: common,
+      endpoint: const JsonApiEndpointReader().fromMap({
+        'url': 'accountStatus',
+        'request': {'accountId': 1},
+        'response': {'active': true},
+      }),
+      feature: 'accounts',
+    );
+
+    for (final suffix in [
+      '_repository.dart',
+      '_repository_impl.dart',
+      '_remote_data_source.dart',
+    ]) {
+      final current = first.singleWhere((file) => file.path.endsWith(suffix));
+      final incoming = second.singleWhere((file) => file.path.endsWith(suffix));
+      final merged = mergeApiFeatureFile(
+        current,
+        incoming,
+        isUpdate: true,
+      );
+      expect(merged.isUpdate, isTrue);
+      expect(merged.content, contains('accountDeactivate'));
+      expect(merged.content, contains('accountStatus'));
+      expect(
+        mergeApiFeatureFile(merged, incoming).content,
+        merged.content,
+      );
+      expect(
+        mergeApiFeatureFile(current, merged).content,
+        merged.content,
+      );
+    }
   });
 
   test('generates dependency injection for every state manager', () {

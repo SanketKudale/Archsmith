@@ -6,6 +6,7 @@ export 'src/api/api_code_generator.dart';
 export 'src/api/api_common_config.dart';
 export 'src/api/api_contract.dart';
 export 'src/api/api_contract_reader.dart';
+export 'src/api/api_repository_merger.dart';
 export 'src/api/api_runtime_generator.dart';
 export 'src/api/clean_api_feature_generator.dart';
 export 'src/api/json_api_endpoint.dart';

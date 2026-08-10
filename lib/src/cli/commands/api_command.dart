@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import '../../api/api_code_generator.dart';
 import '../../api/api_common_config.dart';
 import '../../api/api_contract_reader.dart';
+import '../../api/api_repository_merger.dart';
 import '../../api/clean_api_feature_generator.dart';
 import '../../api/json_api_endpoint.dart';
 import '../../models/generation.dart';
@@ -71,12 +72,24 @@ class ApiCommand extends ArchsmithCommand {
       final common = const ApiCommonConfigStore().read(commonPath);
       final feature = argResults!['feature'] as String? ??
           names(p.basenameWithoutExtension(resolvedEndpoint)).snakeCase;
-      files = const CleanApiFeatureGenerator().generate(
+      final generated = const CleanApiFeatureGenerator().generate(
         config: config,
         common: common,
         endpoint: endpoint,
         feature: feature,
       );
+      files = generated.map((planned) {
+        if (!isCumulativeApiFeaturePath(planned.path)) return planned;
+        final absolutePath = p.join(root, planned.path);
+        if (!context.files.fileExists(absolutePath) || options.force) {
+          return planned;
+        }
+        return mergeApiFeatureFile(
+          PlannedFile(planned.path, context.files.readFile(absolutePath)),
+          planned,
+          isUpdate: true,
+        );
+      }).toList();
       formatTarget = 'lib/features/${names(feature).snakeCase}';
     } else {
       final contractPath = p.normalize(

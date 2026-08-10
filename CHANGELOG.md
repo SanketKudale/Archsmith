@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1 - 2026-08-10
+
+- Updated `archsmith api --feature <name>` to keep one feature-level remote
+  data source, repository interface, and repository implementation.
+- New endpoints now append their API methods to those shared feature files
+  without duplicating previously generated methods.
+
 ## 0.4.0 - 2026-07-29
 
 - Consolidated endpoint dependency injection into one API provider that wires

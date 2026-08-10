@@ -249,6 +249,8 @@ archsmith api path/to/cusacc.json --feature cusacc --method POST
 
 The JSON filename becomes the feature name when `--feature` is omitted. Request and response field types, nested objects, and lists are inferred from the examples. Archsmith generates:
 
+When multiple API commands use the same `--feature`, Archsmith keeps one feature-level remote data source, repository interface, and repository implementation, then adds the new API methods to those existing files.
+
 - remote datasource;
 - request and response models;
 - request and response entities;

@@ -76,8 +76,8 @@ class CleanApiFeatureGenerator {
         ),
       ),
       PlannedFile(
-        '$root/data/datasources/${operation.snakeCase}_remote_data_source.dart',
-        _dataSource(config.network, endpoint, operation, common),
+        '$root/data/datasources/${featureName}_remote_data_source.dart',
+        _dataSource(config.network, endpoint, operation, common, featureName),
       ),
       PlannedFile(
         '$root/domain/repositories/${featureName}_repository.dart',
@@ -256,8 +256,10 @@ class CleanApiFeatureGenerator {
     JsonApiEndpoint endpoint,
     NameVariants operation,
     ApiCommonConfig common,
+    String feature,
   ) {
     final prefix = operation.pascalCase;
+    final dataSource = '${names(feature).pascalCase}RemoteDataSource';
     final path =
         endpoint.path.startsWith('/') ? endpoint.path : '/${endpoint.path}';
     final sendsBody = endpoint.method != 'GET' && endpoint.method != 'DELETE';
@@ -273,17 +275,23 @@ class CleanApiFeatureGenerator {
           "import '../../../../core/network/generated/api_request_context.dart';\n"
           "import '../../../../core/network/generated/api_result.dart';\n"
           "import '../../../../core/network/network_client.dart';\n"
+          "// archsmith:repository-imports:start\n"
+          "// archsmith:api-operation:${operation.snakeCase}:start\n"
           "import '../models/${operation.snakeCase}_request_model.dart';\n"
-          "import '../models/${operation.snakeCase}_response_model.dart';\n\n"
-          "class ${prefix}RemoteDataSource {\n"
-          "  ${prefix}RemoteDataSource(this.client, {this.context = const ApiRequestContext(), ApiRequestCoordinator? coordinator, ApiResponseCache? cache})\n"
+          "import '../models/${operation.snakeCase}_response_model.dart';\n"
+          "// archsmith:api-operation:${operation.snakeCase}:end\n"
+          "// archsmith:repository-imports:end\n\n"
+          "class $dataSource {\n"
+          "  $dataSource(this.client, {this.context = const ApiRequestContext(), ApiRequestCoordinator? coordinator, ApiResponseCache? cache})\n"
           "      : coordinator = coordinator ?? const ApiRequestCoordinator(),\n"
           "        cache = cache ?? MemoryApiResponseCache(enabled: ${common.cacheEnabled}, timeToLive: const Duration(seconds: ${common.cacheTtlSeconds}));\n"
           "  final NetworkClient client;\n"
           "  final ApiRequestContext context;\n\n"
           "  final ApiRequestCoordinator coordinator;\n"
           "  final ApiResponseCache cache;\n\n"
-          "  Future<ApiResult<${prefix}ResponseModel>> execute(${prefix}RequestModel request) async {\n"
+          "  // archsmith:repository-methods:start\n"
+          "  // archsmith:api-operation:${operation.snakeCase}:start\n"
+          "  Future<ApiResult<${prefix}ResponseModel>> ${operation.camelCase}(${prefix}RequestModel request) async {\n"
           "    final cacheKey = '${endpoint.method}:$path:\${request.toJson()}';\n"
           "    try {\n"
           "      final response = await coordinator.execute<Response<Object?>>(\n"
@@ -310,6 +318,8 @@ class CleanApiFeatureGenerator {
           "      return ApiFailure(ApiError(type: ApiErrorType.unknown, message: error.toString()));\n"
           "    }\n"
           "  }\n"
+          "  // archsmith:api-operation:${operation.snakeCase}:end\n"
+          "  // archsmith:repository-methods:end\n"
           "}\n";
     }
     final httpUri = sendsBody
@@ -327,17 +337,23 @@ class CleanApiFeatureGenerator {
         "import '../../../../core/network/generated/api_request_context.dart';\n"
         "import '../../../../core/network/generated/api_result.dart';\n"
         "import '../../../../core/network/network_client.dart';\n"
+        "// archsmith:repository-imports:start\n"
+        "// archsmith:api-operation:${operation.snakeCase}:start\n"
         "import '../models/${operation.snakeCase}_request_model.dart';\n"
-        "import '../models/${operation.snakeCase}_response_model.dart';\n\n"
-        "class ${prefix}RemoteDataSource {\n"
-        "  ${prefix}RemoteDataSource(this.client, {this.context = const ApiRequestContext(), ApiRequestCoordinator? coordinator, ApiResponseCache? cache})\n"
+        "import '../models/${operation.snakeCase}_response_model.dart';\n"
+        "// archsmith:api-operation:${operation.snakeCase}:end\n"
+        "// archsmith:repository-imports:end\n\n"
+        "class $dataSource {\n"
+        "  $dataSource(this.client, {this.context = const ApiRequestContext(), ApiRequestCoordinator? coordinator, ApiResponseCache? cache})\n"
         "      : coordinator = coordinator ?? const ApiRequestCoordinator(),\n"
         "        cache = cache ?? MemoryApiResponseCache(enabled: ${common.cacheEnabled}, timeToLive: const Duration(seconds: ${common.cacheTtlSeconds}));\n"
         "  final NetworkClient client;\n"
         "  final ApiRequestContext context;\n\n"
         "  final ApiRequestCoordinator coordinator;\n"
         "  final ApiResponseCache cache;\n\n"
-        "  Future<ApiResult<${prefix}ResponseModel>> execute(${prefix}RequestModel payload) async {\n"
+        "  // archsmith:repository-methods:start\n"
+        "  // archsmith:api-operation:${operation.snakeCase}:start\n"
+        "  Future<ApiResult<${prefix}ResponseModel>> ${operation.camelCase}(${prefix}RequestModel payload) async {\n"
         "    final uri = $httpUri;\n"
         "    final cacheKey = '${endpoint.method}:$path:\${payload.toJson()}';\n"
         "    try {\n"
@@ -362,16 +378,26 @@ class CleanApiFeatureGenerator {
         "      return ApiFailure(ApiError(type: ApiErrorType.network, message: error.toString()));\n"
         "    }\n"
         "  }\n"
+        "  // archsmith:api-operation:${operation.snakeCase}:end\n"
+        "  // archsmith:repository-methods:end\n"
         "}\n";
   }
 
   String _repository(String feature, NameVariants operation) {
     final prefix = operation.pascalCase;
     return "import '../../../../core/network/generated/api_result.dart';\n"
+        "// archsmith:repository-imports:start\n"
+        "// archsmith:api-operation:${operation.snakeCase}:start\n"
         "import '../entities/${operation.snakeCase}_request_entity.dart';\n"
-        "import '../entities/${operation.snakeCase}_response_entity.dart';\n\n"
+        "import '../entities/${operation.snakeCase}_response_entity.dart';\n"
+        "// archsmith:api-operation:${operation.snakeCase}:end\n"
+        "// archsmith:repository-imports:end\n\n"
         "abstract interface class ${names(feature).pascalCase}Repository {\n"
+        "  // archsmith:repository-methods:start\n"
+        "  // archsmith:api-operation:${operation.snakeCase}:start\n"
         "  Future<ApiResult<${prefix}ResponseEntity>> ${operation.camelCase}(${prefix}RequestEntity request);\n"
+        "  // archsmith:api-operation:${operation.snakeCase}:end\n"
+        "  // archsmith:repository-methods:end\n"
         "}\n";
   }
 
@@ -379,22 +405,30 @@ class CleanApiFeatureGenerator {
     final prefix = operation.pascalCase;
     final repository = names(feature).pascalCase;
     return "import '../../../../core/network/generated/api_result.dart';\n"
+        "import '../../domain/repositories/${names(feature).snakeCase}_repository.dart';\n"
+        "import '../datasources/${names(feature).snakeCase}_remote_data_source.dart';\n"
+        "// archsmith:repository-imports:start\n"
+        "// archsmith:api-operation:${operation.snakeCase}:start\n"
         "import '../../domain/entities/${operation.snakeCase}_request_entity.dart';\n"
         "import '../../domain/entities/${operation.snakeCase}_response_entity.dart';\n"
-        "import '../../domain/repositories/${names(feature).snakeCase}_repository.dart';\n"
-        "import '../datasources/${operation.snakeCase}_remote_data_source.dart';\n"
-        "import '../models/${operation.snakeCase}_request_model.dart';\n\n"
+        "import '../models/${operation.snakeCase}_request_model.dart';\n"
+        "// archsmith:api-operation:${operation.snakeCase}:end\n"
+        "// archsmith:repository-imports:end\n\n"
         "class ${repository}RepositoryImpl implements ${repository}Repository {\n"
         "  const ${repository}RepositoryImpl(this.dataSource);\n"
-        "  final ${prefix}RemoteDataSource dataSource;\n\n"
+        "  final ${repository}RemoteDataSource dataSource;\n\n"
+        "  // archsmith:repository-methods:start\n"
+        "  // archsmith:api-operation:${operation.snakeCase}:start\n"
         "  @override\n"
         "  Future<ApiResult<${prefix}ResponseEntity>> ${operation.camelCase}(${prefix}RequestEntity request) async {\n"
-        "    final result = await dataSource.execute(${prefix}RequestModel.fromEntity(request));\n"
+        "    final result = await dataSource.${operation.camelCase}(${prefix}RequestModel.fromEntity(request));\n"
         "    return switch (result) {\n"
         "      ApiSuccess(:final data, :final statusCode, :final message) => ApiSuccess(data.toEntity(), statusCode: statusCode, message: message),\n"
         "      ApiFailure(:final error) => ApiFailure(error),\n"
         "    };\n"
         "  }\n"
+        "  // archsmith:api-operation:${operation.snakeCase}:end\n"
+        "  // archsmith:repository-methods:end\n"
         "}\n";
   }
 
@@ -506,6 +540,7 @@ class CleanApiFeatureGenerator {
   ) {
     final prefix = operation.pascalCase;
     final repository = names(feature).pascalCase;
+    final dataSourceClass = '${repository}RemoteDataSource';
     final coreImports = stateManagement == StateManagementType.riverpod
         ? "import 'package:$project/core/network/providers/api_request_context_provider.dart';\n"
             "import 'package:$project/core/network/providers/api_request_coordinator_provider.dart';\n"
@@ -519,15 +554,15 @@ class CleanApiFeatureGenerator {
         ? "import '../states/${operation.snakeCase}_state.dart';\n"
         : '';
     final imports = "$coreImports"
-        "import '../../data/datasources/${operation.snakeCase}_remote_data_source.dart';\n"
+        "import '../../data/datasources/${feature}_remote_data_source.dart';\n"
         "import '../../data/repositories/${feature}_repository_impl.dart';\n"
         "import '../../domain/usecases/${operation.snakeCase}_use_case.dart';\n"
         "$stateImport"
         "import '${operation.snakeCase}_notifier.dart';\n\n";
     final dataSource =
-        "${prefix}RemoteDataSource(client, context: context, coordinator: coordinator, cache: cache)";
-    final notifier =
-        "${prefix}Notifier(${prefix}UseCase(${repository}RepositoryImpl($dataSource)))";
+        "$dataSourceClass(client, context: context, coordinator: coordinator, cache: cache)";
+    final repositoryInstance = "${repository}RepositoryImpl($dataSource)";
+    final notifier = "${prefix}Notifier(${prefix}UseCase($repositoryInstance))";
     return switch (stateManagement) {
       StateManagementType.riverpod =>
         "import 'package:flutter_riverpod/flutter_riverpod.dart';\n"
@@ -542,9 +577,9 @@ class CleanApiFeatureGenerator {
       StateManagementType.provider => "import 'package:provider/provider.dart';\n"
           "$imports"
           "final ${operation.camelCase}Provider = ChangeNotifierProxyProvider4<NetworkClient, ApiRequestContext, ApiRequestCoordinator, ApiResponseCache, ${prefix}Notifier>(\n"
-          "  create: (buildContext) => ${prefix}Notifier(${prefix}UseCase(${repository}RepositoryImpl(${prefix}RemoteDataSource(buildContext.read<NetworkClient>(), context: buildContext.read<ApiRequestContext>(), coordinator: buildContext.read<ApiRequestCoordinator>(), cache: buildContext.read<ApiResponseCache>())))),\n"
+          "  create: (buildContext) => ${prefix}Notifier(${prefix}UseCase(${repository}RepositoryImpl($dataSourceClass(buildContext.read<NetworkClient>(), context: buildContext.read<ApiRequestContext>(), coordinator: buildContext.read<ApiRequestCoordinator>(), cache: buildContext.read<ApiResponseCache>())))),\n"
           "  update: (_, client, context, coordinator, cache, previous) {\n"
-          "    final useCase = ${prefix}UseCase(${repository}RepositoryImpl($dataSource));\n"
+          "    final useCase = ${prefix}UseCase($repositoryInstance);\n"
           "    if (previous == null) return ${prefix}Notifier(useCase);\n"
           "    previous.useCase = useCase;\n"
           "    return previous;\n"
@@ -558,7 +593,7 @@ class CleanApiFeatureGenerator {
             "  final context = buildContext.read<ApiRequestContext>();\n"
             "  final coordinator = buildContext.read<ApiRequestCoordinator>();\n"
             "  final cache = buildContext.read<ApiResponseCache>();\n"
-            "  return ${prefix}Cubit(${prefix}UseCase(${repository}RepositoryImpl($dataSource)));\n"
+            "  return ${prefix}Cubit(${prefix}UseCase($repositoryInstance));\n"
             "});\n",
       StateManagementType.getx => "import 'package:get/get.dart';\n"
           "$imports"
@@ -569,7 +604,7 @@ class CleanApiFeatureGenerator {
           "    final context = Get.find<ApiRequestContext>();\n"
           "    final coordinator = Get.find<ApiRequestCoordinator>();\n"
           "    final cache = Get.find<ApiResponseCache>();\n"
-          "    return ${prefix}Controller(${prefix}UseCase(${repository}RepositoryImpl($dataSource)));\n"
+          "    return ${prefix}Controller(${prefix}UseCase($repositoryInstance));\n"
           "  });\n"
           "}\n",
       StateManagementType.none => "$imports"
